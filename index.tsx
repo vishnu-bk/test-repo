@@ -801,16 +801,20 @@ const ExerciseDetailView = ({ exerciseName, workouts, onBack }: { exerciseName: 
 
 const Footer = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: string) => void }) => (
     <footer style={styles.footer}>
-        <div style={activeTab === 'summary' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('summary')}>
-            <svg style={styles.footerIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M12,1L2,12h3v8h14v-8h3M12,5.7l6,5.3v6H6v-6Z" /></svg>
-            <span>Summary</span>
+        <div style={styles.footerNav}>
+            <div style={activeTab === 'summary' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('summary')}>
+                <svg style={styles.footerIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M12,1L2,12h3v8h14v-8h3M12,5.7l6,5.3v6H6v-6Z" /></svg>
+                <span>Summary</span>
+            </div>
+            <div style={activeTab === 'library' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('library')}>
+                 <svg style={styles.footerIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M18,2H6C4.9,2,4,2.9,4,4V20C4,21.1,4.9,22,6,22H18C19.1,22,20,21.1,20,20V4C20,2.9,19.1,2,18,2M6,4H11V12L8.5,10.5L6,12V4M18,20H6V14L8.5,12.5L11,14V4H18V20Z" /></svg>
+                <span>Library</span>
+            </div>
         </div>
-        <div style={activeTab === 'library' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('library')}>
-             <svg style={styles.footerIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M18,2H6C4.9,2,4,2.9,4,4V20C4,21.1,4.9,22,6,22H18C19.1,22,20,21.1,20,20V4C20,2.9,19.1,2,18,2M6,4H11V12L8.5,10.5L6,12V4M18,20H6V14L8.5,12.5L11,14V4H18V20Z" /></svg>
-            <span>Library</span>
-        </div>
+        <p style={styles.signature}>© {new Date().getFullYear()} BK Productions</p>
     </footer>
 );
+
 
 const GlobalStyles = () => (
     <style>{`
@@ -852,10 +856,12 @@ const styles: Record<string, React.CSSProperties> = {
     workoutDetails: { display: 'flex', flexDirection: 'column', gap: '4px' },
     workoutCalories: { background: 'linear-gradient(45deg, var(--primary-accent), var(--secondary-accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '700', alignSelf: 'center' },
     noHistory: { color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' },
-    footer: { position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '450px', margin: '0 auto', display: 'flex', justifyContent: 'space-around', backgroundColor: 'rgba(28, 28, 30, 0.85)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-color)', padding: '8px 0 24px 0' },
+    footer: { position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '450px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: 'rgba(28, 28, 30, 0.85)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-color)', padding: '8px 0 16px 0', gap: '8px' },
+    footerNav: { display: 'flex', justifyContent: 'space-around', width: '100%' },
     footerItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)', fontSize: '10px', cursor: 'pointer', transition: 'color 0.2s, transform 0.2s' },
     footerItemActive: { color: 'var(--primary-accent)' },
     footerIcon: { width: '28px', height: '28px' },
+    signature: { margin: 0, fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.8 },
     suggestionsList: { position: 'absolute', width: '100%', backgroundColor: '#2c2c2e', border: '1px solid var(--border-color)', borderRadius: '8px', listStyle: 'none', padding: '0', margin: '4px 0 0 0', zIndex: 10, maxHeight: '200px', overflowY: 'auto' },
     suggestionItem: { padding: '12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)' },
     suggestionCategory: { fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' },
