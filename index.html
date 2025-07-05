@@ -9,18 +9,40 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --background: #000000;
+      --background: #111111;
       --surface: #1c1c1e;
       --text-primary: #ffffff;
       --text-secondary: #8e8e93;
-      --ring-move: #fa114f;
-      --ring-exercise: #90f738;
-      --ring-stand: #00c8f9;
+      --primary-accent: #e032e6;
+      --secondary-accent: #7a1fe6;
       --button-bg: #2c2c2e;
       --border-color: #38383a;
     }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
     body {
       background-color: var(--background);
+      background-image: radial-gradient(circle at top, #2a2a2e 0%, var(--background) 60%);
       color: var(--text-primary);
       font-family: 'Inter', sans-serif;
       margin: 0;
