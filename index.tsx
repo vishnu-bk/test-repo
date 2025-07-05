@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -140,12 +141,15 @@ const NEW_EXERCISE_DB: Exercise[] = [
     { name: 'Leg Extension Machine', type: 'Strength', category: 'Legs' },
     { name: 'Seated Leg Curl Machine', type: 'Strength', category: 'Legs' },
     { name: 'Hip Thrusts', type: 'Strength', category: 'Legs' },
+    { name: 'Romanian Deadlifts', type: 'Strength', category: 'Legs' },
+    { name: 'Calf Raises', type: 'Strength', category: 'Legs' },
     // Shoulders
     { name: 'Overhead Press (Barbell)', type: 'Strength', category: 'Shoulders' },
     { name: 'Arnold Press', type: 'Strength', category: 'Shoulders' },
     { name: 'Lateral Raises', type: 'Strength', category: 'Shoulders' },
     { name: 'Front Raises', type: 'Strength', category: 'Shoulders' },
     { name: 'Upright Row', type: 'Strength', category: 'Shoulders' },
+    { name: 'Face Pulls', type: 'Strength', category: 'Shoulders' },
     // Arms
     { name: 'Barbell Curl', type: 'Strength', category: 'Arms' },
     { name: 'Dumbbell Curl', type: 'Strength', category: 'Arms' },
@@ -172,6 +176,38 @@ const NEW_EXERCISE_DB: Exercise[] = [
     { name: 'Running', type: 'Cardio', category: 'Cardio' },
 ];
 
+const ROUTINES_DATA = [
+    {
+        name: "Push/Pull/Legs (PPL)",
+        description: "A popular split organizing workouts by movement pattern. Excellent for building balanced strength and muscle.",
+        split: [
+            { day: "Push Day (Chest, Shoulders, Triceps)", exercises: ["Barbell Bench Press", "Overhead Press (Barbell)", "Incline Dumbbell Press", "Lateral Raises", "Tricep Pushdown (Cable)", "Pec Deck"] },
+            { day: "Pull Day (Back, Biceps)", exercises: ["Wide Grip Pull-Ups", "Bent Over Barbell Row", "Lat Pulldown", "Seated Cable Row", "Barbell Curl", "Hammer Curl"] },
+            { day: "Legs Day (Quads, Hamstrings, Glutes)", exercises: ["Barbell Back Squat", "Romanian Deadlifts", "Leg Press", "Leg Extension Machine", "Seated Leg Curl Machine", "Calf Raises"] }
+        ]
+    },
+    {
+        name: "Upper/Lower Split",
+        description: "Ideal for a 4-day-a-week routine, this split dedicates days to your upper and lower body for focused training and ample recovery.",
+        split: [
+            { day: "Upper Body A", exercises: ["Barbell Bench Press", "Single-Arm Dumbbell Row", "Incline Dumbbell Press", "Lat Pulldown", "Lateral Raises", "Dumbbell Curl"] },
+            { day: "Lower Body A", exercises: ["Barbell Back Squat", "Seated Leg Curl Machine", "Walking Lunges", "Calf Raises", "Hanging Leg Raises"] },
+            { day: "Upper Body B", exercises: ["Overhead Press (Barbell)", "Wide Grip Pull-Ups", "Dumbbell Bench Press", "Seated Cable Row", "Face Pulls", "Tricep Pushdown (Cable)"] },
+            { day: "Lower Body B", exercises: ["Standard Deadlifts", "Leg Press", "Hip Thrusts", "Leg Extension Machine", "Plank"] }
+        ]
+    },
+    {
+        name: "Full Body Routine",
+        description: "A great routine for beginners or those with limited time, hitting all major muscle groups 3 times a week for comprehensive development.",
+        split: [
+            { day: "Workout A", exercises: ["Barbell Back Squat", "Barbell Bench Press", "Bent Over Barbell Row", "Lateral Raises", "Crunches"] },
+            { day: "Workout B", exercises: ["Standard Deadlifts", "Overhead Press (Barbell)", "Wide Grip Pull-Ups", "Walking Lunges", "Plank"] },
+            { day: "Workout C", exercises: ["Leg Press", "Incline Dumbbell Bench Press", "Seated Cable Row", "Kettlebell Swings", "Hanging Leg Raises"] }
+        ]
+    }
+];
+
+type WorkoutFormData = Omit<Workout, 'id' | 'timestamp' | 'calories'>;
 
 const App = () => {
     const [workouts, setWorkouts] = useState<Workout[]>(() => { try { const saved = localStorage.getItem('workouts'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
@@ -190,6 +226,9 @@ const App = () => {
     const [activeTab, setActiveTab] = useState('summary');
     const [view, setView] = useState<{ name: 'main' | 'detail', data: any }>({ name: 'main', data: null });
     const [exerciseToLog, setExerciseToLog] = useState<Exercise | null>(null);
+    const [addExerciseModalData, setAddExerciseModalData] = useState<WorkoutFormData | null>(null);
+    const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null);
+    const [formKey, setFormKey] = useState(0);
 
     useEffect(() => { localStorage.setItem('workouts', JSON.stringify(workouts)); }, [workouts]);
     useEffect(() => { localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary)); }, [exerciseLibrary]);
@@ -201,11 +240,6 @@ const App = () => {
         }, {});
         return Object.entries(history).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
     }, [workouts]);
-
-    const addWorkout = (workout: Omit<Workout, 'id' | 'timestamp' | 'calories'>) => {
-        const newWorkout = { id: Date.now(), timestamp: new Date(`${workout.date}T${new Date().toTimeString().split(' ')[0]}`).toISOString(), ...workout, calories: calculateCalories(workout) };
-        setWorkouts(prev => [...prev, newWorkout]);
-    };
     
     const calculateCalories = ({ type, duration, sets }: { type: string, duration?: number, sets?: Partial<SetData>[] }) => {
         if (type === 'Cardio') return Math.round((duration || 0) * 8.5);
@@ -214,28 +248,109 @@ const App = () => {
         return Math.round(totalVolume * 0.15);
     };
 
+    const addWorkout = (workout: WorkoutFormData) => {
+        const newWorkout = { id: Date.now(), timestamp: new Date(`${workout.date}T${new Date().toTimeString().split(' ')[0]}`).toISOString(), ...workout, calories: calculateCalories(workout) };
+        setWorkouts(prev => [...prev, newWorkout]);
+        setFormKey(k => k + 1); // Reset form by changing key
+    };
+
+    const handleUpdateWorkout = (updatedWorkoutData: Workout) => {
+        const updatedWorkout = { ...updatedWorkoutData, calories: calculateCalories(updatedWorkoutData) };
+        setWorkouts(prev => prev.map(w => w.id === updatedWorkout.id ? updatedWorkout : w));
+        setEditingWorkout(null);
+    };
+
+    const handleDeleteWorkout = (workoutId: number) => {
+        setWorkouts(prev => prev.filter(w => w.id !== workoutId));
+        setEditingWorkout(null);
+    };
+
     const handleSelectExerciseHistory = (exerciseName: string) => setView({ name: 'detail', data: exerciseName });
     const handleBackToMain = () => setView({ name: 'main', data: null });
     const handleAddExerciseFromLibrary = (exercise: Exercise) => { setExerciseToLog(exercise); setActiveTab('summary'); };
     const handleAddCustomExercise = (newExercise: Exercise) => { if (!exerciseLibrary.some(ex => ex.name.toLowerCase() === newExercise.name.toLowerCase())) { setExerciseLibrary(prev => [...prev, newExercise]); } };
     
+    const handleShowAddExerciseModal = (workoutData: WorkoutFormData) => setAddExerciseModalData(workoutData);
+
+    const handleSaveNewExercise = (newExercise: Exercise, workoutData: WorkoutFormData) => {
+        handleAddCustomExercise(newExercise);
+        addWorkout(workoutData);
+        setAddExerciseModalData(null);
+    };
+    
+    const handleAddRoutineToLog = (exerciseNames: string[]) => {
+        const reversedWorkouts = [...workouts].reverse();
+        const newWorkouts = exerciseNames.map((name, index) => {
+            const exerciseInfo = exerciseLibrary.find(e => e.name === name);
+            if (!exerciseInfo) return null;
+
+            const lastInstance = reversedWorkouts.find(w => w.name === name);
+            let newWorkoutData: WorkoutFormData;
+
+            if (exerciseInfo.type === 'Strength') {
+                const sets = lastInstance?.sets && lastInstance.sets.length > 0 ? lastInstance.sets : [{ weight: 0, reps: 0 }, { weight: 0, reps: 0 }, { weight: 0, reps: 0 }];
+                newWorkoutData = { name, type: 'Strength', date: currentDate, sets };
+            } else {
+                const duration = lastInstance?.duration || 30;
+                newWorkoutData = { name, type: 'Cardio', date: currentDate, duration };
+            }
+            
+            return { ...newWorkoutData, id: Date.now() + index, timestamp: new Date().toISOString(), calories: calculateCalories(newWorkoutData) };
+        }).filter((w): w is Workout => w !== null);
+
+        setWorkouts(prev => [...prev, ...newWorkouts]);
+        setActiveTab('summary');
+    };
+
+    const allCategories = useMemo(() => [...new Set(exerciseLibrary.map(e => e.category))], [exerciseLibrary]);
+
     if (view.name === 'detail') return <ExerciseDetailView exerciseName={view.data} workouts={workouts} onBack={handleBackToMain} />;
 
     return (
         <div style={styles.container}>
             <GlobalStyles />
             <Header />
+            {addExerciseModalData && (
+                <AddExerciseModal
+                    workoutData={addExerciseModalData}
+                    onClose={() => setAddExerciseModalData(null)}
+                    onSave={handleSaveNewExercise}
+                    categories={allCategories}
+                />
+            )}
+            {editingWorkout && (
+                <EditWorkoutModal 
+                    workout={editingWorkout}
+                    onClose={() => setEditingWorkout(null)}
+                    onSave={handleUpdateWorkout}
+                    onDelete={handleDeleteWorkout}
+                />
+            )}
             <main style={styles.main} key={activeTab}>
                 {activeTab === 'summary' && (
                     <div style={styles.contentWrapper}>
-                        <WorkoutForm onAddWorkout={addWorkout} exerciseLibrary={exerciseLibrary} exerciseToLog={exerciseToLog} clearExerciseToLog={() => setExerciseToLog(null)} currentDate={currentDate} onDateChange={setCurrentDate} />
-                        <TodaysWorkout workouts={workouts} date={currentDate} />
+                        <WorkoutForm 
+                            key={formKey}
+                            onAddWorkout={addWorkout} 
+                            exerciseLibrary={exerciseLibrary} 
+                            exerciseToLog={exerciseToLog} 
+                            clearExerciseToLog={() => setExerciseToLog(null)} 
+                            currentDate={currentDate} 
+                            onDateChange={setCurrentDate}
+                            onShowAddExerciseModal={handleShowAddExerciseModal}
+                        />
+                        <TodaysWorkout workouts={workouts} date={currentDate} onEditWorkout={setEditingWorkout} />
                         <WorkoutHistory historicalWorkouts={historicalWorkouts} onSelectExercise={handleSelectExerciseHistory} />
                     </div>
                 )}
                 {activeTab === 'library' && 
                     <div style={styles.contentWrapper}>
-                        <ExerciseLibrary exerciseLibrary={exerciseLibrary} onAddFromLibrary={handleAddExerciseFromLibrary} onAddCustom={handleAddCustomExercise} />
+                        <ExerciseLibrary 
+                            exerciseLibrary={exerciseLibrary} 
+                            onAddFromLibrary={handleAddExerciseFromLibrary} 
+                            onAddCustom={handleAddCustomExercise}
+                            onAddRoutineToLog={handleAddRoutineToLog}
+                        />
                     </div>
                 }
             </main>
@@ -246,10 +361,6 @@ const App = () => {
 
 const Header = () => (
     <header style={styles.header}>
-        <div style={styles.headerTop}>
-            <span>{new Date().toLocaleTimeString('en-us', {hour: '2-digit', minute:'2-digit'})}</span>
-            <span style={styles.headerIcons}>&#x1f4f6; &#x1f4f WiFi &#x1f50b;</span>
-        </div>
         <div style={styles.summaryHeader}>
             <span style={styles.summaryTitle}>Gymbrootan</span>
             <span style={styles.profilePic}></span>
@@ -257,7 +368,7 @@ const Header = () => (
     </header>
 );
 
-const TodaysWorkout = ({ workouts, date }: { workouts: Workout[], date: string }) => {
+const TodaysWorkout = ({ workouts, date, onEditWorkout }: { workouts: Workout[], date: string, onEditWorkout: (workout: Workout) => void }) => {
     const todaysWorkouts = workouts.filter(w => w.date === date);
     const totalVolume = useMemo(() => todaysWorkouts.reduce((total, workout) => {
         if(workout.type !== 'Strength' || !workout.sets) return total;
@@ -272,7 +383,7 @@ const TodaysWorkout = ({ workouts, date }: { workouts: Workout[], date: string }
                 {totalVolume > 0 && <p style={styles.totalVolume}>Total Volume: <strong>{totalVolume.toLocaleString()} kg</strong></p>}
                 <ul style={styles.historyList}>
                     {todaysWorkouts.map(w => (
-                        <li key={w.id} style={{...styles.historyItem, cursor: 'default'}}>
+                        <li key={w.id} style={styles.historyItem} onClick={() => onEditWorkout(w)} role="button" tabIndex={0}>
                              <div style={styles.workoutDetails}>
                                 <strong>{w.name}</strong>
                                 {w.type === 'Strength' && w.sets ? (
@@ -288,14 +399,14 @@ const TodaysWorkout = ({ workouts, date }: { workouts: Workout[], date: string }
                     ))}
                 </ul>
                 </>
-            ) : <p style={styles.noHistory}>No workouts logged for this day.</p>}
+            ) : <p style={styles.noHistory}>No workouts logged for this day. Add a workout or select a routine from the library.</p>}
         </div>
     );
 }
 
-const WorkoutForm = ({ onAddWorkout, exerciseLibrary, exerciseToLog, clearExerciseToLog, currentDate, onDateChange }: { onAddWorkout: (workout: any) => void, exerciseLibrary: Exercise[], exerciseToLog: Exercise | null, clearExerciseToLog: () => void, currentDate: string, onDateChange: (date: string) => void }) => {
+const WorkoutForm = ({ onAddWorkout, exerciseLibrary, exerciseToLog, clearExerciseToLog, currentDate, onDateChange, onShowAddExerciseModal }: { onAddWorkout: (workout: WorkoutFormData) => void, exerciseLibrary: Exercise[], exerciseToLog: Exercise | null, clearExerciseToLog: () => void, currentDate: string, onDateChange: (date: string) => void, onShowAddExerciseModal: (data: WorkoutFormData) => void }) => {
     const [name, setName] = useState('');
-    const [type, setType] = useState('Strength');
+    const [type, setType] = useState<'Strength' | 'Cardio'>('Strength');
     const [duration, setDuration] = useState('');
     const [sets, setSets] = useState<{weight: string|number, reps: string|number}[]>([{ weight: '', reps: '' }]);
     const [suggestions, setSuggestions] = useState<Exercise[]>([]);
@@ -312,19 +423,29 @@ const WorkoutForm = ({ onAddWorkout, exerciseLibrary, exerciseToLog, clearExerci
     };
     
     useEffect(() => {
-        const selected = exerciseLibrary.find(ex => ex.name === name);
+        const selected = exerciseLibrary.find(ex => ex.name.toLowerCase() === name.toLowerCase());
         if(selected) setType(selected.type);
     }, [name, exerciseLibrary]);
 
     const handleSuggestionClick = (suggestion: Exercise) => { setName(suggestion.name); setType(suggestion.type); setSuggestions([]); };
-    const handleSetChange = (index: number, field: 'weight' | 'reps', value: string) => { const newSets = [...sets]; newSets[index][field] = Number(value); setSets(newSets); };
+    const handleSetChange = (index: number, field: 'weight' | 'reps', value: string) => { const newSets = [...sets]; newSets[index][field] = value === '' ? '' : Number(value); setSets(newSets); };
     const addSet = () => setSets([...sets, { weight: '', reps: '' }]);
     const removeSet = (index: number) => setSets(sets.filter((_, i) => i !== index));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onAddWorkout(type === 'Strength' ? { name, type, date: currentDate, sets } : { name, type, date: currentDate, duration: Number(duration) });
-        setName(''); setType('Strength'); setDuration(''); setSets([{ weight: '', reps: '' }]);
+        if(!name.trim()) return;
+
+        const exerciseExists = exerciseLibrary.some(ex => ex.name.toLowerCase() === name.toLowerCase());
+        const workoutData = type === 'Strength' 
+            ? { name, type, date: currentDate, sets: sets.map(s => ({weight: Number(s.weight) || 0, reps: Number(s.reps) || 0})).filter(s => s.reps > 0) } 
+            : { name, type, date: currentDate, duration: Number(duration) };
+
+        if (exerciseExists) {
+            onAddWorkout(workoutData);
+        } else {
+            onShowAddExerciseModal(workoutData);
+        }
     };
     
     const selectedExercise = useMemo(() => exerciseLibrary.find(ex => ex.name.toLowerCase() === name.toLowerCase()), [name, exerciseLibrary]);
@@ -414,7 +535,44 @@ const AddCustomExerciseForm = ({ category, onAddCustom }: { category: string, on
     );
 };
 
-const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom }: { exerciseLibrary: Exercise[], onAddFromLibrary: (ex: Exercise) => void, onAddCustom: (ex: Exercise) => void }) => {
+const RoutineSection = ({ onAddRoutineToLog }: { onAddRoutineToLog: (exercises: string[]) => void }) => {
+    const [openRoutines, setOpenRoutines] = useState<Record<string, boolean>>({});
+    const toggleRoutine = (routineName: string) => {
+        setOpenRoutines(prev => ({ ...prev, [routineName]: !prev[routineName] }));
+    };
+
+    return (
+        <div style={{...styles.libraryCard, paddingBottom: '0px', marginBottom: '20px'}}>
+            <h2 style={styles.cardTitle}>Workout Routines</h2>
+            {ROUTINES_DATA.map(routine => (
+                <div key={routine.name} style={styles.categoryWrapper} className="categoryWrapper">
+                    <button onClick={() => toggleRoutine(routine.name)} style={styles.categoryHeader}>
+                        <span>{routine.name}</span>
+                        <span style={styles.categoryToggleIcon}>{openRoutines[routine.name] ? '−' : '+'}</span>
+                    </button>
+                    <div style={{...styles.libraryListContainer, maxHeight: openRoutines[routine.name] ? `800px` : '0px'}}>
+                        <div style={styles.routineContent}>
+                            <p style={styles.routineDescription}>{routine.description}</p>
+                            {routine.split.map(splitDay => (
+                                <div key={splitDay.day} style={styles.routineDay}>
+                                    <div style={styles.routineDayHeader}>
+                                        <h4 style={styles.routineDayTitle}>{splitDay.day}</h4>
+                                        <button onClick={() => onAddRoutineToLog(splitDay.exercises)} style={styles.routineAddBtn} className="button">Add to Log</button>
+                                    </div>
+                                    <ul style={styles.routineExerciseList}>
+                                        {splitDay.exercises.map(ex => <li key={ex}>{ex}</li>)}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom, onAddRoutineToLog }: { exerciseLibrary: Exercise[], onAddFromLibrary: (ex: Exercise) => void, onAddCustom: (ex: Exercise) => void, onAddRoutineToLog: (ex: string[]) => void }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
@@ -429,6 +587,8 @@ const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom }: { e
     const toggleCategory = (category: string) => setOpenCategories(prev => ({...prev, [category]: !prev[category]}));
 
     return (
+        <>
+        <RoutineSection onAddRoutineToLog={onAddRoutineToLog} />
         <div style={styles.libraryCard}>
             <h2 style={styles.cardTitle}>Exercise Library</h2>
             <input type="text" placeholder="Search exercises..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{...styles.input, marginBottom: '20px'}}/>
@@ -456,8 +616,110 @@ const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom }: { e
                 </div>
             ))}
         </div>
+        </>
     );
 };
+
+const AddExerciseModal = ({ workoutData, onClose, onSave, categories }: { workoutData: WorkoutFormData, onClose: () => void, onSave: (newExercise: Exercise, workoutData: WorkoutFormData) => void, categories: string[] }) => {
+    const [category, setCategory] = useState(categories[0] || 'Uncategorized');
+    const [type, setType] = useState<'Strength' | 'Cardio'>('Strength');
+
+    const handleSave = () => {
+        const newExercise: Exercise = { name: workoutData.name, category, type };
+        onSave(newExercise, workoutData);
+    };
+
+    return (
+        <div style={styles.modalOverlay}>
+            <div style={styles.modalContent}>
+                <h3 style={styles.modalTitle}>Add New Exercise</h3>
+                <p style={styles.modalText}>"{workoutData.name}" is not in your library. Please add a category to save it.</p>
+                <div style={styles.form}>
+                    <label style={styles.modalLabel}>Category</label>
+                    <select value={category} onChange={e => setCategory(e.target.value)} style={styles.input}>
+                        {categories.sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                         <option value="Uncategorized">Uncategorized</option>
+                    </select>
+                    <label style={styles.modalLabel}>Type</label>
+                    <select value={type} onChange={e => setType(e.target.value as any)} style={styles.input}>
+                        <option value="Strength">Strength</option>
+                        <option value="Cardio">Cardio</option>
+                    </select>
+                </div>
+                <div style={styles.modalActions}>
+                    <button onClick={onClose} style={styles.modalButtonSecondary}>Cancel</button>
+                    <button onClick={handleSave} style={{...styles.button, flex: 1}} className="button">Save and Log</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const EditWorkoutModal = ({ workout, onClose, onSave, onDelete }: { workout: Workout, onClose: () => void, onSave: (w: Workout) => void, onDelete: (id: number) => void }) => {
+    const [duration, setDuration] = useState(workout.duration?.toString() || '');
+    const [sets, setSets] = useState(workout.sets?.map(s => ({...s, weight: s.weight.toString(), reps: s.reps.toString()})) || [{ weight: '', reps: '' }]);
+    
+    useEffect(() => {
+        setDuration(workout.duration?.toString() || '');
+        setSets(workout.sets?.map(s => ({ ...s, weight: s.weight.toString(), reps: s.reps.toString() })) || [{ weight: '', reps: '' }]);
+    }, [workout]);
+
+    const handleSetChange = (index: number, field: 'weight' | 'reps', value: string) => {
+        const newSets = [...sets];
+        newSets[index][field] = value;
+        setSets(newSets);
+    };
+    const addSet = () => setSets([...sets, { weight: '', reps: '' }]);
+    const removeSet = (index: number) => setSets(sets.filter((_, i) => i !== index));
+
+    const handleSave = () => {
+        const updatedWorkout: Workout = {
+            ...workout,
+            duration: workout.type === 'Cardio' ? Number(duration) : undefined,
+            sets: workout.type === 'Strength' ? sets.map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 })).filter(s => s.reps > 0) : undefined
+        };
+        onSave(updatedWorkout);
+    };
+    
+    const handleDelete = () => {
+        if(window.confirm(`Are you sure you want to delete this ${workout.name} log?`)) {
+            onDelete(workout.id);
+        }
+    };
+
+    return (
+        <div style={styles.modalOverlay}>
+            <div style={styles.modalContent}>
+                <h3 style={styles.modalTitle}>Edit Workout</h3>
+                <p style={styles.modalText}>{workout.name}</p>
+                <div style={styles.form}>
+                    {workout.type === 'Strength' ? (
+                        <div style={styles.setsContainer}>
+                            <div style={styles.setRowHeader}><span>Set</span><span>Weight (kg)</span><span>Reps</span><span></span></div>
+                            {sets.map((set, index) => (
+                                <div key={index} style={styles.setRow}>
+                                    <span style={styles.setNumber}>{index + 1}</span>
+                                    <input type="number" placeholder="0" value={set.weight} onChange={e => handleSetChange(index, 'weight', e.target.value)} style={styles.setInput} />
+                                    <input type="number" placeholder="0" value={set.reps} onChange={e => handleSetChange(index, 'reps', e.target.value)} style={styles.setInput} />
+                                    <button type="button" onClick={() => removeSet(index)} style={styles.removeSetBtn}>&times;</button>
+                                </div>
+                            ))}
+                            <button type="button" onClick={addSet} style={styles.addSetBtn}>+ Add Set</button>
+                        </div>
+                    ) : (
+                        <input type="number" placeholder="Duration (minutes)" value={duration} onChange={e => setDuration(e.target.value)} style={styles.input} required />
+                    )}
+                </div>
+                <div style={styles.modalActions}>
+                    <button onClick={handleDelete} style={{...styles.modalButtonSecondary, flex: '0 0 auto', color: '#ff453a', borderColor: '#ff453a'}}>Delete</button>
+                    <button onClick={onClose} style={{...styles.modalButtonSecondary, flex: 1}}>Cancel</button>
+                    <button onClick={handleSave} style={{...styles.button, flex: 2}} className="button">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const ProgressGraph = ({ data, yAxisLabel, unit }: {data: {x: number, y: number}[], yAxisLabel: string, unit: string}) => {
     const [tooltip, setTooltip] = useState<{x: number, y: number, data: {x: number, y: number}} | null>(null);
@@ -575,9 +837,7 @@ const styles: Record<string, React.CSSProperties> = {
     main: { flex: 1, padding: '0 16px 80px 16px', },
     contentWrapper: { animation: 'fadeInUp 0.5s ease-out forwards' },
     header: { padding: '8px 16px 16px 16px' },
-    headerTop: { display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' },
-    headerIcons: { display: 'flex', gap: '8px', alignItems: 'center' },
-    summaryHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' },
+    summaryHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' },
     summaryTitle: { fontSize: '34px', fontWeight: '800', background: 'linear-gradient(45deg, var(--primary-accent), var(--secondary-accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
     profilePic: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--button-bg)', backgroundImage: 'url(https://i.pravatar.cc/80)', backgroundSize: 'cover' },
     formCard: { backgroundColor: 'var(--surface)', borderRadius: '16px', padding: '16px', marginBottom: '20px', border: '1px solid var(--border-color)', transition: 'transform 0.2s, box-shadow 0.2s', },
@@ -629,6 +889,20 @@ const styles: Record<string, React.CSSProperties> = {
     formThumbnail: { width: '44px', height: '44px', flexShrink: 0 },
     libraryIconContainer: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--button-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' },
     libraryIcon: { width: '60%', height: '60%', color: 'var(--primary-accent)' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)', animation: 'fadeInUp 0.3s' },
+    modalContent: { backgroundColor: 'var(--surface)', padding: '24px', borderRadius: '16px', width: '90%', maxWidth: '400px', border: '1px solid var(--border-color)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', animation: 'scaleIn 0.3s' },
+    modalTitle: { margin: '0 0 8px 0', fontSize: '22px', fontWeight: '700' },
+    modalText: { margin: '0 0 20px 0', color: 'var(--text-secondary)', lineHeight: 1.5 },
+    modalLabel: { fontWeight: '600', fontSize: '14px', marginBottom: '4px', display: 'block' },
+    modalActions: { display: 'flex', gap: '12px', marginTop: '24px' },
+    modalButtonSecondary: { flex: 1, backgroundColor: 'var(--button-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' },
+    routineContent: { padding: '8px 16px 16px 16px' },
+    routineDescription: { fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 16px 0', },
+    routineDay: { marginBottom: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px'},
+    routineDayHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
+    routineDayTitle: { fontSize: '16px', fontWeight: '600', color: 'var(--primary-accent)', margin: 0 },
+    routineAddBtn: { background: 'var(--button-bg)', color: 'var(--primary-accent)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
+    routineExerciseList: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px' },
 };
 
 const container = document.getElementById('root');
