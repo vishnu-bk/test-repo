@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // === ICONS ===
@@ -327,6 +327,10 @@ const App = () => {
     const handleDeleteWorkout = (workoutId: number) => {
         setWorkouts(prev => prev.filter(w => w.id !== workoutId));
     };
+    
+    const clearExerciseToLog = useCallback(() => {
+        setExerciseToLog(null);
+    }, []);
 
     const handleAddExerciseFromLibrary = (exercise: Exercise) => { 
         setExerciseToLog(exercise);
@@ -378,7 +382,7 @@ const App = () => {
                         handleDeleteWorkout={handleDeleteWorkout}
                         exerciseLibrary={exerciseLibrary}
                         exerciseToLog={exerciseToLog}
-                        clearExerciseToLog={() => setExerciseToLog(null)}
+                        clearExerciseToLog={clearExerciseToLog}
                     />
                 );
         }
@@ -771,7 +775,7 @@ const WorkoutForm = ({ workouts, addWorkout, exerciseLibrary, exerciseToLog, cle
                             <span style={styles.setLabel}>Set {index + 1}</span>
                             <input type="number" placeholder="Weight (kg)" value={set.weight || ''} onChange={e => handleSetChange(index, 'weight', e.target.value)} style={styles.input} />
                             <input type="number" placeholder="Reps" value={set.reps || ''} onChange={e => handleSetChange(index, 'reps', e.target.value)} style={styles.input} />
-                            <button type="button" onClick={() => removeSet(index)} style={styles.removeSetButton}>&times;</button>
+                            <button type="button" onClick={() => removeSet(index)} style={styles.removeSetButton} aria-label={`Remove Set ${index + 1}`}>&times;</button>
                         </div>
                     ))}
                     <button type="button" onClick={addSet} style={styles.addSetButton}>+ Add Set</button>
@@ -830,7 +834,7 @@ const EditWorkoutModal = ({ workout, onClose, onSave, onDelete }: { workout: Wor
                             <span style={styles.setLabel}>Set {index + 1}</span>
                             <input type="number" placeholder="kg" value={set.weight} onChange={e => handleSetChange(index, 'weight', e.target.value)} style={styles.input} />
                             <input type="number" placeholder="reps" value={set.reps} onChange={e => handleSetChange(index, 'reps', e.target.value)} style={styles.input} />
-                            <button type="button" onClick={() => removeSet(index)} style={styles.removeSetButton}>&times;</button>
+                            <button type="button" onClick={() => removeSet(index)} style={styles.removeSetButton} aria-label={`Remove Set ${index + 1}`}>&times;</button>
                         </div>
                     ))}
                     {editedWorkout.type === 'Strength' && (
@@ -968,16 +972,6 @@ const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, rout
     }, [exerciseLibrary, searchTerm]);
 
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-
-    useEffect(() => {
-        // When search term changes, expand all filtered categories by default
-        const initialExpanded: Record<string, boolean> = {};
-        Object.keys(filteredExercisesByCategory).forEach(category => {
-            initialExpanded[category] = true;
-        });
-        setExpandedCategories(initialExpanded);
-    }, [searchTerm, exerciseLibrary]);
-
 
     const toggleCategory = (category: string) => {
         setExpandedCategories(prev => ({
