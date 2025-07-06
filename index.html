@@ -41,8 +41,12 @@
     }
 
     body {
-      background-color: var(--background);
-      background-image: radial-gradient(circle at top, #2a2a2e 0%, var(--background) 60%);
+      background-color: var(--background); /* Fallback */
+      /* A dark, atmospheric gym photo with a gradient overlay to ensure readability */
+      background-image: linear-gradient(rgba(17, 17, 17, 0.85), rgba(17, 17, 17, 1)), url('https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=2940&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center center;
+      background-attachment: fixed;
       color: var(--text-primary);
       font-family: 'Inter', sans-serif;
       margin: 0;
