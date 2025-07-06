@@ -976,7 +976,7 @@ const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, rout
     const toggleCategory = (category: string) => {
         setExpandedCategories(prev => ({
             ...prev,
-            [category]: !prev[category]
+            [category]: prev[category] !== false ? false : true
         }));
     };
 
@@ -1027,9 +1027,9 @@ const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, rout
                             <div key={category} style={styles.categoryGroup}>
                                 <div style={styles.categoryTitleHeader} onClick={() => toggleCategory(category)}>
                                     <h2 style={styles.categoryTitle}>{category}</h2>
-                                    <ChevronIcon style={styles.chevronIcon} isExpanded={!!expandedCategories[category]} />
+                                    <ChevronIcon style={styles.chevronIcon} isExpanded={expandedCategories[category] !== false} />
                                 </div>
-                                {expandedCategories[category] && (
+                                {expandedCategories[category] !== false && (
                                     <div style={styles.exerciseList}>
                                         {exercises.map(ex => (
                                             <div key={ex.name} style={styles.exerciseListItem} onClick={() => onAddExercise(ex)} title={`Log ${ex.name}`}>
