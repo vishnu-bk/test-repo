@@ -68,6 +68,12 @@ const CardioIcon = ({ style }: { style: React.CSSProperties }) => (
         <path d="M22 12h-4l-3 9L9 3l-4 9H2"/>
     </svg>
 );
+const StatsIcon = ({ style }: { style: React.CSSProperties }) => (
+    <svg style={style} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M4,18H6V15H4V18M6.5,18H8.5V13H6.5V18M9,18H11V11H9V18M11.5,18H13.5V9H11.5V18M14,18H16V7H14V18M16.5,18H18.5V4H16.5V18M2,20H22V22H2V20Z" />
+    </svg>
+);
+
 
 const ExerciseIcon = ({ category, style } : { category: string, style: React.CSSProperties }) => {
     const iconContainerStyle = { ...styles.libraryIconContainer, ...style };
@@ -113,19 +119,34 @@ interface Exercise {
     name: string;
     type: 'Strength' | 'Cardio';
     category: string;
+    primaryMuscles: string[];
+    secondaryMuscles: string[];
 }
 
-const NEW_EXERCISE_DB: Exercise[] = [
+const initialExerciseList: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>[] = [
     // Chest
     { name: 'Barbell Bench Press', type: 'Strength', category: 'Chest' },
     { name: 'Dumbbell Bench Press', type: 'Strength', category: 'Chest' },
     { name: 'Incline Barbell Bench Press', type: 'Strength', category: 'Chest' },
     { name: 'Incline Dumbbell Bench Press', type: 'Strength', category: 'Chest' },
-    { name: 'Decline Bench Press', type: 'Strength', category: 'Chest' },
+    { name: 'Decline Barbell Bench Press', type: 'Strength', category: 'Chest' },
+    { name: 'Decline Dumbbell Press', type: 'Strength', category: 'Chest' },
     { name: 'Cable Chest Fly', type: 'Strength', category: 'Chest' },
     { name: 'Dumbbell Chest Fly', type: 'Strength', category: 'Chest' },
+    { name: 'Incline Dumbbell Fly', type: 'Strength', category: 'Chest' },
     { name: 'Push-Ups', type: 'Strength', category: 'Chest' },
     { name: 'Pec Deck', type: 'Strength', category: 'Chest' },
+    { name: 'Close-Grip Bench Press', type: 'Strength', category: 'Chest' },
+    { name: 'Guillotine Press', type: 'Strength', category: 'Chest' },
+    { name: 'Barbell Floor Press', type: 'Strength', category: 'Chest' },
+    { name: 'Dumbbell Floor Press', type: 'Strength', category: 'Chest' },
+    { name: 'Dumbbell Pullover', type: 'Strength', category: 'Chest' },
+    { name: 'Plate Squeeze Press', type: 'Strength', category: 'Chest' },
+    { name: 'Alternating Dumbbell Press', type: 'Strength', category: 'Chest' },
+    { name: 'Dumbbells-together Incline Bench Press', type: 'Strength', category: 'Chest' },
+    { name: 'Dumbbell Chest Press (Neutral Grip)', type: 'Strength', category: 'Chest' },
+    { name: 'One-Arm Dumbbell Fly', type: 'Strength', category: 'Chest' },
+    { name: 'Hex Press (Dumbbell Squeeze Press)', type: 'Strength', category: 'Chest' },
     // Back
     { name: 'Wide Grip Pull-Ups', type: 'Strength', category: 'Back' },
     { name: 'Lat Pulldown', type: 'Strength', category: 'Back' },
@@ -137,7 +158,7 @@ const NEW_EXERCISE_DB: Exercise[] = [
     { name: 'Barbell Back Squat', type: 'Strength', category: 'Legs' },
     { name: 'Front Squat', type: 'Strength', category: 'Legs' },
     { name: 'Leg Press', type: 'Strength', category: 'Legs' },
-    { name: 'Walking Lunges', type: 'Strength', category: 'Legs' },
+    { name: 'Walking Lunges', type: 'Strength', 'category': 'Legs' },
     { name: 'Leg Extension Machine', type: 'Strength', category: 'Legs' },
     { name: 'Seated Leg Curl Machine', type: 'Strength', category: 'Legs' },
     { name: 'Hip Thrusts', type: 'Strength', category: 'Legs' },
@@ -175,6 +196,90 @@ const NEW_EXERCISE_DB: Exercise[] = [
     { name: 'Rowing Machine', type: 'Cardio', category: 'Cardio' },
     { name: 'Running', type: 'Cardio', category: 'Cardio' },
 ];
+
+const EXERCISE_MUSCLE_MAP: Record<string, { primary: string[], secondary: string[] }> = {
+    // Chest
+    'Barbell Bench Press': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'Incline Barbell Bench Press': { primary: ['Pectoralis Major (Clavicular Head)'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'Decline Barbell Bench Press': { primary: ['Pectoralis Major (Sternal Head)'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'Dumbbell Bench Press': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid', 'Triceps', 'Core Stabilizers'] },
+    'Incline Dumbbell Bench Press': { primary: ['Pectoralis Major (Clavicular Head)'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'Decline Dumbbell Press': { primary: ['Pectoralis Major (Sternal Head)'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'Dumbbell Chest Fly': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid', 'Biceps'] },
+    'Incline Dumbbell Fly': { primary: ['Pectoralis Major (Clavicular Head)'], secondary: ['Anterior Deltoid'] },
+    'Push-Ups': { primary: ['Pectoralis Major', 'Serratus Anterior'], secondary: ['Anterior Deltoid', 'Triceps', 'Core'] },
+    'Pec Deck': { primary: ['Pectoralis Major'], secondary: [] },
+    'Close-Grip Bench Press': { primary: ['Triceps', 'Pectoralis Major (Inner)'], secondary: ['Anterior Deltoid'] },
+    'Guillotine Press': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'Barbell Floor Press': { primary: ['Pectoralis Major', 'Triceps'], secondary: ['Anterior Deltoid'] },
+    'Dumbbell Floor Press': { primary: ['Pectoralis Major', 'Triceps'], secondary: ['Anterior Deltoid'] },
+    'Dumbbell Pullover': { primary: ['Pectoralis Major', 'Latissimus Dorsi'], secondary: ['Serratus Anterior', 'Triceps (Long Head)'] },
+    'Plate Squeeze Press': { primary: ['Pectoralis Major (Inner)'], secondary: ['Triceps', 'Anterior Deltoid'] },
+    'Alternating Dumbbell Press': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid', 'Triceps', 'Core', 'Obliques'] },
+    'Dumbbells-together Incline Bench Press': { primary: ['Pectoralis Major (Clavicular Head)', 'Pectoralis Major (Inner)'], secondary: ['Triceps', 'Anterior Deltoid'] },
+    'Dumbbell Chest Press (Neutral Grip)': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid', 'Triceps'] },
+    'One-Arm Dumbbell Fly': { primary: ['Pectoralis Major'], secondary: ['Core', 'Obliques', 'Anterior Deltoid'] },
+    'Hex Press (Dumbbell Squeeze Press)': { primary: ['Pectoralis Major (Inner)'], secondary: ['Triceps', 'Anterior Deltoid'] },
+    'Cable Chest Fly': { primary: ['Pectoralis Major'], secondary: ['Anterior Deltoid'] },
+    // Back
+    'Wide Grip Pull-Ups': { primary: ['Latissimus Dorsi'], secondary: ['Biceps', 'Trapezius', 'Posterior Deltoid'] },
+    'Lat Pulldown': { primary: ['Latissimus Dorsi'], secondary: ['Biceps', 'Trapezius'] },
+    'Bent Over Barbell Row': { primary: ['Latissimus Dorsi', 'Trapezius', 'Rhomboids'], secondary: ['Posterior Deltoid', 'Biceps', 'Erector Spinae'] },
+    'Single-Arm Dumbbell Row': { primary: ['Latissimus Dorsi', 'Trapezius'], secondary: ['Biceps', 'Posterior Deltoid', 'Obliques'] },
+    'Seated Cable Row': { primary: ['Latissimus Dorsi', 'Rhomboids', 'Trapezius'], secondary: ['Biceps', 'Posterior Deltoid'] },
+    'Standard Deadlifts': { primary: ['Glutes', 'Hamstrings', 'Erector Spinae'], secondary: ['Quadriceps', 'Trapezius', 'Latissimus Dorsi', 'Core'] },
+    // Legs
+    'Barbell Back Squat': { primary: ['Quadriceps', 'Glutes'], secondary: ['Hamstrings', 'Adductors', 'Erector Spinae', 'Core'] },
+    'Front Squat': { primary: ['Quadriceps', 'Glutes'], secondary: ['Core', 'Upper Back'] },
+    'Leg Press': { primary: ['Quadriceps', 'Glutes'], secondary: ['Hamstrings', 'Adductors'] },
+    'Walking Lunges': { primary: ['Quadriceps', 'Glutes'], secondary: ['Hamstrings', 'Adductors', 'Core'] },
+    'Leg Extension Machine': { primary: ['Quadriceps'], secondary: [] },
+    'Seated Leg Curl Machine': { primary: ['Hamstrings'], secondary: ['Calves'] },
+    'Hip Thrusts': { primary: ['Glutes'], secondary: ['Hamstrings', 'Erector Spinae'] },
+    'Romanian Deadlifts': { primary: ['Hamstrings', 'Glutes'], secondary: ['Erector Spinae', 'Forearms'] },
+    'Calf Raises': { primary: ['Gastrocnemius', 'Soleus'], secondary: [] },
+    // Shoulders
+    'Overhead Press (Barbell)': { primary: ['Anterior Deltoid', 'Lateral Deltoid'], secondary: ['Triceps', 'Trapezius', 'Core'] },
+    'Arnold Press': { primary: ['Anterior Deltoid', 'Lateral Deltoid'], secondary: ['Triceps', 'Trapezius'] },
+    'Lateral Raises': { primary: ['Lateral Deltoid'], secondary: ['Trapezius'] },
+    'Front Raises': { primary: ['Anterior Deltoid'], secondary: ['Trapezius'] },
+    'Upright Row': { primary: ['Lateral Deltoid', 'Trapezius'], secondary: ['Biceps'] },
+    'Face Pulls': { primary: ['Posterior Deltoid', 'Rhomboids', 'Trapezius'], secondary: [] },
+    // Arms
+    'Barbell Curl': { primary: ['Biceps'], secondary: ['Brachialis'] },
+    'Dumbbell Curl': { primary: ['Biceps'], secondary: ['Brachialis'] },
+    'Preacher Curl': { primary: ['Biceps'], secondary: ['Brachialis'] },
+    'Hammer Curl': { primary: ['Brachialis', 'Biceps'], secondary: ['Forearms'] },
+    'Tricep Dips': { primary: ['Triceps'], secondary: ['Anterior Deltoid', 'Pectoralis Major'] },
+    'Tricep Pushdown (Cable)': { primary: ['Triceps'], secondary: [] },
+    'Skull Crushers': { primary: ['Triceps'], secondary: [] },
+    // Core
+    'Crunches': { primary: ['Rectus Abdominis'], secondary: [] },
+    'Plank': { primary: ['Rectus Abdominis', 'Transverse Abdominis', 'Obliques'], secondary: ['Erector Spinae', 'Glutes'] },
+    'Hanging Leg Raises': { primary: ['Rectus Abdominis (Lower)', 'Hip Flexors'], secondary: ['Obliques'] },
+    'Russian Twists': { primary: ['Obliques'], secondary: ['Rectus Abdominis'] },
+    'Ab Rollouts': { primary: ['Rectus Abdominis', 'Transverse Abdominis'], secondary: ['Latissimus Dorsi', 'Obliques'] },
+    // Full Body
+    'Burpees': { primary: ['Quadriceps', 'Glutes', 'Pectoralis Major', 'Core'], secondary: ['Hamstrings', 'Calves', 'Shoulders', 'Triceps'] },
+    'Kettlebell Swings': { primary: ['Glutes', 'Hamstrings'], secondary: ['Erector Spinae', 'Deltoids', 'Core'] },
+    'Clean and Press': { primary: ['Quadriceps', 'Glutes', 'Deltoids'], secondary: ['Hamstrings', 'Erector Spinae', 'Trapezius', 'Triceps', 'Core'] },
+};
+
+const buildExerciseDatabase = (): Exercise[] => {
+    const exerciseMap = new Map<string, Exercise>();
+    initialExerciseList.forEach(ex => {
+        const muscleData = EXERCISE_MUSCLE_MAP[ex.name];
+        exerciseMap.set(ex.name, {
+            ...ex,
+            primaryMuscles: muscleData?.primary || [],
+            secondaryMuscles: muscleData?.secondary || [],
+        });
+    });
+    return Array.from(exerciseMap.values());
+};
+
+const NEW_EXERCISE_DB = buildExerciseDatabase();
+
 
 const ROUTINES_DATA = [
     {
@@ -268,11 +373,20 @@ const App = () => {
     const handleSelectExerciseHistory = (exerciseName: string) => setView({ name: 'detail', data: exerciseName });
     const handleBackToMain = () => setView({ name: 'main', data: null });
     const handleAddExerciseFromLibrary = (exercise: Exercise) => { setExerciseToLog(exercise); setActiveTab('summary'); };
-    const handleAddCustomExercise = (newExercise: Exercise) => { if (!exerciseLibrary.some(ex => ex.name.toLowerCase() === newExercise.name.toLowerCase())) { setExerciseLibrary(prev => [...prev, newExercise]); } };
+    const handleAddCustomExercise = (newExercise: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>) => { 
+        if (!exerciseLibrary.some(ex => ex.name.toLowerCase() === newExercise.name.toLowerCase())) { 
+            const fullExerciseData: Exercise = {
+                ...newExercise,
+                primaryMuscles: [], // Custom exercises start with no specific muscle data
+                secondaryMuscles: [],
+            };
+            setExerciseLibrary(prev => [...prev, fullExerciseData]); 
+        } 
+    };
     
     const handleShowAddExerciseModal = (workoutData: WorkoutFormData) => setAddExerciseModalData(workoutData);
 
-    const handleSaveNewExercise = (newExercise: Exercise, workoutData: WorkoutFormData) => {
+    const handleSaveNewExercise = (newExercise: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>, workoutData: WorkoutFormData) => {
         handleAddCustomExercise(newExercise);
         addWorkout(workoutData);
         setAddExerciseModalData(null);
@@ -353,6 +467,11 @@ const App = () => {
                         />
                     </div>
                 }
+                {activeTab === 'stats' &&
+                    <div style={styles.contentWrapper}>
+                        <StatsView workouts={workouts} exerciseLibrary={exerciseLibrary} />
+                    </div>
+                }
             </main>
             <Footer activeTab={activeTab} setActiveTab={setActiveTab} />
         </div>
@@ -429,7 +548,12 @@ const WorkoutForm = ({ onAddWorkout, exerciseLibrary, exerciseToLog, clearExerci
 
     const handleSuggestionClick = (suggestion: Exercise) => { setName(suggestion.name); setType(suggestion.type); setSuggestions([]); };
     const handleSetChange = (index: number, field: 'weight' | 'reps', value: string) => { const newSets = [...sets]; newSets[index][field] = value === '' ? '' : Number(value); setSets(newSets); };
-    const addSet = () => setSets([...sets, { weight: '', reps: '' }]);
+    
+    const addSet = () => {
+        const lastSet = sets.length > 0 ? sets[sets.length - 1] : { weight: '', reps: '' };
+        setSets([...sets, { ...lastSet }]);
+    };
+    
     const removeSet = (index: number) => setSets(sets.filter((_, i) => i !== index));
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -443,6 +567,11 @@ const WorkoutForm = ({ onAddWorkout, exerciseLibrary, exerciseToLog, clearExerci
 
         if (exerciseExists) {
             onAddWorkout(workoutData);
+            // Clear form after submission, except for the date
+            setName('');
+            setSets([{ weight: '', reps: '' }]);
+            setDuration('');
+            setSuggestions([]);
         } else {
             onShowAddExerciseModal(workoutData);
         }
@@ -496,32 +625,34 @@ const WorkoutForm = ({ onAddWorkout, exerciseLibrary, exerciseToLog, clearExerci
 const WorkoutHistory = ({ historicalWorkouts, onSelectExercise }: { historicalWorkouts: [string, Workout[]][], onSelectExercise: (name: string) => void }) => (
     <div style={styles.historyCard}>
         <h2 style={styles.cardTitle}>Logbook</h2>
-        {historicalWorkouts.length > 0 ? (
-            historicalWorkouts.map(([date, workoutsOnDate]) => (
-                <div key={date}>
-                    <h3 style={styles.historyDate}>{date}</h3>
-                    <ul style={styles.historyList}>
-                        {workoutsOnDate.map(w => (
-                            <li key={w.id} style={styles.historyItem} onClick={() => onSelectExercise(w.name)} role="button" tabIndex={0}>
-                                <div style={styles.workoutDetails}>
-                                    <strong>{w.name}</strong>
-                                    {w.type === 'Strength' && w.sets ? (
-                                        <span>{w.sets.length}x{w.sets.reduce((t,s) => t + (s.reps || 0), 0)} reps</span>
-                                    ) : (
-                                        <span>{w.duration} min</span>
-                                    )}
-                                </div>
-                                <div style={styles.workoutCalories}>{w.calories} Cal</div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            ))
-        ) : <p style={styles.noHistory}>Log your first workout to see history.</p>}
+        <div style={styles.historyScrollContainer}>
+            {historicalWorkouts.length > 0 ? (
+                historicalWorkouts.map(([date, workoutsOnDate]) => (
+                    <div key={date}>
+                        <h3 style={styles.historyDate}>{date}</h3>
+                        <ul style={styles.historyList}>
+                            {workoutsOnDate.map(w => (
+                                <li key={w.id} style={styles.historyItem} onClick={() => onSelectExercise(w.name)} role="button" tabIndex={0}>
+                                    <div style={styles.workoutDetails}>
+                                        <strong>{w.name}</strong>
+                                        {w.type === 'Strength' && w.sets ? (
+                                            <span>{w.sets.length}x{w.sets.reduce((t,s) => t + (s.reps || 0), 0)} reps</span>
+                                        ) : (
+                                            <span>{w.duration} min</span>
+                                        )}
+                                    </div>
+                                    <div style={styles.workoutCalories}>{w.calories} Cal</div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))
+            ) : <p style={styles.noHistory}>Log your first workout to see history.</p>}
+        </div>
     </div>
 );
 
-const AddCustomExerciseForm = ({ category, onAddCustom }: { category: string, onAddCustom: (ex: Exercise) => void }) => {
+const AddCustomExerciseForm = ({ category, onAddCustom }: { category: string, onAddCustom: (ex: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>) => void }) => {
     const [name, setName] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (name.trim()) { onAddCustom({ name: name.trim(), type: category === 'Cardio' ? 'Cardio' : 'Strength', category }); setName(''); setIsAdding(false); } };
@@ -572,7 +703,7 @@ const RoutineSection = ({ onAddRoutineToLog }: { onAddRoutineToLog: (exercises: 
     );
 }
 
-const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom, onAddRoutineToLog }: { exerciseLibrary: Exercise[], onAddFromLibrary: (ex: Exercise) => void, onAddCustom: (ex: Exercise) => void, onAddRoutineToLog: (ex: string[]) => void }) => {
+const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom, onAddRoutineToLog }: { exerciseLibrary: Exercise[], onAddFromLibrary: (ex: Exercise) => void, onAddCustom: (ex: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>) => void, onAddRoutineToLog: (ex: string[]) => void }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
@@ -620,12 +751,12 @@ const ExerciseLibrary = ({ exerciseLibrary, onAddFromLibrary, onAddCustom, onAdd
     );
 };
 
-const AddExerciseModal = ({ workoutData, onClose, onSave, categories }: { workoutData: WorkoutFormData, onClose: () => void, onSave: (newExercise: Exercise, workoutData: WorkoutFormData) => void, categories: string[] }) => {
+const AddExerciseModal = ({ workoutData, onClose, onSave, categories }: { workoutData: WorkoutFormData, onClose: () => void, onSave: (newExercise: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>, workoutData: WorkoutFormData) => void, categories: string[] }) => {
     const [category, setCategory] = useState(categories[0] || 'Uncategorized');
     const [type, setType] = useState<'Strength' | 'Cardio'>('Strength');
 
     const handleSave = () => {
-        const newExercise: Exercise = { name: workoutData.name, category, type };
+        const newExercise: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'> = { name: workoutData.name, category, type };
         onSave(newExercise, workoutData);
     };
 
@@ -669,7 +800,12 @@ const EditWorkoutModal = ({ workout, onClose, onSave, onDelete }: { workout: Wor
         newSets[index][field] = value;
         setSets(newSets);
     };
-    const addSet = () => setSets([...sets, { weight: '', reps: '' }]);
+    
+    const addSet = () => {
+        const lastSet = sets.length > 0 ? sets[sets.length - 1] : { weight: '', reps: '' };
+        setSets([...sets, { ...lastSet }]);
+    };
+    
     const removeSet = (index: number) => setSets(sets.filter((_, i) => i !== index));
 
     const handleSave = () => {
@@ -799,12 +935,254 @@ const ExerciseDetailView = ({ exerciseName, workouts, onBack }: { exerciseName: 
     );
 };
 
+const MUSCLE_TO_GROUP_ID: Record<string, string> = {
+    'Pectoralis': 'pecs',
+    'Deltoid': 'delts',
+    'Biceps': 'biceps',
+    'Brachialis': 'biceps',
+    'Triceps': 'triceps',
+    'Forearms': 'forearms',
+    'Rectus Abdominis': 'abs',
+    'Transverse Abdominis': 'abs',
+    'Obliques': 'obliques',
+    'Serratus Anterior': 'obliques',
+    'Quadriceps': 'quads',
+    'Adductors': 'quads',
+    'Hamstrings': 'hamstrings',
+    'Glutes': 'glutes',
+    'Gastrocnemius': 'calves',
+    'Soleus': 'calves',
+    'Latissimus Dorsi': 'lats',
+    'Trapezius': 'traps',
+    'Rhomboids': 'traps',
+    'Erector Spinae': 'erector_spinae',
+    'Posterior Deltoid': 'delts_posterior',
+    'Anterior Deltoid': 'delts_anterior',
+    'Lateral Deltoid': 'delts_lateral',
+    'Core': 'abs',
+};
+
+const GROUP_ID_TO_NAME: Record<string, string> = {
+    'pecs': 'Pectoralis (Chest)',
+    'delts': 'Deltoids (Shoulders)',
+    'delts_anterior': 'Anterior Deltoids',
+    'delts_lateral': 'Lateral Deltoids',
+    'delts_posterior': 'Posterior Deltoids',
+    'biceps': 'Biceps',
+    'triceps': 'Triceps',
+    'forearms': 'Forearms',
+    'abs': 'Abdominals (Core)',
+    'obliques': 'Obliques',
+    'quads': 'Quadriceps',
+    'hamstrings': 'Hamstrings',
+    'glutes': 'Glutes',
+    'calves': 'Calves',
+    'lats': 'Latissimus Dorsi (Lats)',
+    'traps': 'Trapezius / Rhomboids',
+    'erector_spinae': 'Erector Spinae (Low Back)',
+};
+
+
+const MuscleMan = ({ data, totalPoints, onMuscleHover, onMouseLeave }: { data: Record<string, any>, totalPoints: number, onMuscleHover: (id: string, e: React.MouseEvent) => void, onMouseLeave: () => void }) => {
+    const MuscleGroup = ({ id, path, ...props }: { id: string, path: string, [key: string]: any }) => {
+        const groupData = data[id];
+        const opacity = groupData ? Math.min(1, 0.1 + (groupData.points / totalPoints) * 5) : 0;
+        const hasData = groupData && groupData.points > 0;
+        
+        return (
+            <g id={`${id}-group`} onMouseEnter={(e) => onMuscleHover(id, e)} onMouseLeave={onMouseLeave}>
+                <path d={path} fill="var(--primary-accent)" opacity={opacity} style={{ transition: 'opacity 0.3s ease' }} {...props} />
+                <path d={path} fill="transparent" stroke={hasData ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'} strokeWidth="0.5" {...props} />
+            </g>
+        );
+    };
+
+    return (
+        <svg viewBox="0 0 200 250" style={{ width: '100%', height: 'auto' }}>
+            <defs>
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="1.5" result="coloredBlur" />
+                    <feMerge>
+                        <feMergeNode in="coloredBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            {/* Base Body Shape */}
+            <path d="M100 240 C 90 230, 80 200, 75 180 L 70 140 L 60 115 L 65 100 L 70 80 L 60 60 L 65 40 L 80 20 L 120 20 L 135 40 L 140 60 L 130 80 L 135 100 L 140 115 L 130 140 L 125 180 C 120 200, 110 230, 100 240 Z" fill="#2c2c2e" />
+
+            {/* Posterior View (Left Side) */}
+            <MuscleGroup id="calves" path="M 40 215 C 35 205, 35 195, 40 185 L 45 185 C 50 195, 50 205, 45 215 Z M 55 215 C 50 205, 50 195, 55 185 L 60 185 C 65 195, 65 205, 60 215 Z" transform="translate(5, 5)" />
+            <MuscleGroup id="hamstrings" path="M 40 180 C 35 160, 35 140, 45 130 L 65 130 C 75 140, 75 160, 70 180 Z" transform="translate(5, 5)" />
+            <MuscleGroup id="glutes" path="M 38 130 C 35 115, 40 100, 55 100 L 70 100 C 85 100, 90 115, 87 130 Z" transform="translate(-10, 5)" />
+            <MuscleGroup id="erector_spinae" path="M 52 100 L 52 70 L 58 70 L 58 100 Z" transform="translate(0, 5)" />
+            <MuscleGroup id="lats" path="M 40 100 L 30 70 L 50 65 L 50 100 Z M 70 100 L 80 70 L 60 65 L 60 100 Z" transform="translate(0, 5)" />
+            <MuscleGroup id="traps" path="M 50 65 L 40 40 L 70 40 L 60 65 Z" />
+            <MuscleGroup id="delts_posterior" path="M 30 70 L 25 55 L 40 40 L 50 65 Z M 80 70 L 85 55 L 70 40 L 60 65 Z" />
+            <MuscleGroup id="triceps" path="M 28 85 L 30 70 L 40 75 Z M 82 85 L 80 70 L 70 75 Z" />
+
+            {/* Anterior View (Right Side) */}
+            <MuscleGroup id="quads" path="M 130 180 C 125 160, 125 140, 135 130 L 155 130 C 165 140, 165 160, 160 180 Z" transform="translate(-5, 5)" />
+            <MuscleGroup id="obliques" path="M 125 100 L 120 70 L 130 70 L 130 100 Z M 165 100 L 170 70 L 160 70 L 160 100 Z" transform="translate(-40, 5)" />
+            <MuscleGroup id="abs" path="M 130 100 L 130 70 L 160 70 L 160 100 Z" transform="translate(-40, 5)" />
+            <MuscleGroup id="pecs" path="M 130 65 C 120 60, 110 40, 125 35 L 140 35 C 155 40, 160 60, 150 65 Z" transform="translate(-40, 0)" />
+            <MuscleGroup id="delts_anterior" path="M 118 65 C 115 50, 120 35, 125 35 L 135 35 C 140 40, 140 50, 135 65 Z M 172 65 C 175 50, 170 35, 165 35 L 155 35 C 150 40, 150 50, 155 65 Z" transform="translate(-40, 0)" />
+            <MuscleGroup id="biceps" path="M 120 85 L 118 70 L 128 75 Z M 170 85 L 172 70 L 162 75 Z" transform="translate(-40, 0)" />
+            <MuscleGroup id="forearms" path="M 120 100 L 120 85 L 125 85 L 125 100 Z M 170 100 L 170 85 L 165 85 L 165 100 Z" transform="translate(-40, 0)" />
+        </svg>
+    );
+};
+
+const MuscleMapTooltip = ({ data }: { data: { x: number; y: number; name: string; percentage: string; muscles: string[] } }) => {
+    if (!data) return null;
+    const style: React.CSSProperties = {
+        position: 'fixed',
+        top: data.y + 15,
+        left: data.x,
+        transform: 'translateX(-50%)',
+        ...styles.muscleTooltip,
+    };
+    return (
+        <div style={style}>
+            <div style={styles.muscleTooltipHeader}>
+                <strong>{data.name}</strong>
+                <span>{data.percentage}%</span>
+            </div>
+            <ul style={styles.muscleTooltipList}>
+                {data.muscles.map(m => <li key={m}>{m}</li>)}
+            </ul>
+        </div>
+    );
+};
+
+
+const StatsView = ({ workouts, exerciseLibrary }: { workouts: Workout[], exerciseLibrary: Exercise[] }) => {
+    const [period, setPeriod] = useState(7); // 7 or 30 days
+    const [tooltipData, setTooltipData] = useState<{ x: number; y: number; name: string; percentage: string; muscles: string[] } | null>(null);
+    
+    const statsData = useMemo(() => {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - period);
+        startDate.setHours(0,0,0,0);
+        
+        const filteredWorkouts = workouts.filter(w => {
+            const workoutDate = new Date(w.date);
+            return workoutDate >= startDate && workoutDate <= endDate;
+        });
+
+        const muscleGroupPoints: Record<string, { points: number; specificMuscles: Set<string> }> = {};
+        let totalVolume = 0;
+
+        filteredWorkouts.forEach(w => {
+            const exerciseInfo = exerciseLibrary.find(ex => ex.name === w.name);
+            if (!exerciseInfo) return;
+
+            const processMuscles = (muscles: string[], weight: number) => {
+                muscles.forEach(muscleName => {
+                    const cleanMuscleName = muscleName.replace(/\s*\(.*\)\s*/, '').trim(); // "Pectoralis Major (Inner)" -> "Pectoralis Major"
+                    const groupKey = Object.keys(MUSCLE_TO_GROUP_ID).find(key => cleanMuscleName.includes(key));
+                    
+                    if (groupKey) {
+                        const groupId = MUSCLE_TO_GROUP_ID[groupKey];
+                        if (!muscleGroupPoints[groupId]) {
+                            muscleGroupPoints[groupId] = { points: 0, specificMuscles: new Set() };
+                        }
+                        muscleGroupPoints[groupId].points += weight;
+                        muscleGroupPoints[groupId].specificMuscles.add(muscleName);
+                    }
+                });
+            };
+
+            processMuscles(exerciseInfo.primaryMuscles, 1);
+            processMuscles(exerciseInfo.secondaryMuscles, 0.5);
+            
+            if (w.type === 'Strength' && w.sets) {
+                totalVolume += w.sets.reduce((acc, set) => acc + ((set.weight || 0) * (set.reps || 0)), 0);
+            }
+        });
+
+        const totalPoints = Object.values(muscleGroupPoints).reduce((sum, data) => sum + data.points, 0);
+
+        return {
+            muscleGroupPoints,
+            totalPoints,
+            totalWorkouts: filteredWorkouts.length,
+            totalVolume,
+        };
+    }, [workouts, exerciseLibrary, period]);
+
+    const handleMuscleHover = (muscleGroupId: string, event: React.MouseEvent) => {
+        if (statsData.muscleGroupPoints[muscleGroupId] && statsData.muscleGroupPoints[muscleGroupId].points > 0) {
+            const groupData = statsData.muscleGroupPoints[muscleGroupId];
+            const percentage = (groupData.points / (statsData.totalPoints || 1)) * 100;
+            setTooltipData({
+                x: event.clientX,
+                y: event.clientY,
+                name: GROUP_ID_TO_NAME[muscleGroupId] || muscleGroupId,
+                percentage: percentage.toFixed(0),
+                muscles: Array.from(groupData.specificMuscles).sort()
+            });
+        }
+    };
+    
+    const handleMouseLeave = () => {
+        setTooltipData(null);
+    };
+
+    return (
+        <div>
+            {tooltipData && <MuscleMapTooltip data={tooltipData} />}
+            <div style={styles.periodSelector}>
+                <button 
+                    onClick={() => setPeriod(7)} 
+                    style={period === 7 ? {...styles.periodButton, ...styles.periodButtonActive} : styles.periodButton}>
+                    Last 7 Days
+                </button>
+                <button 
+                    onClick={() => setPeriod(30)} 
+                    style={period === 30 ? {...styles.periodButton, ...styles.periodButtonActive} : styles.periodButton}>
+                    Last 30 Days
+                </button>
+            </div>
+             <div style={styles.statsGrid}>
+                <div style={styles.formCard}>
+                    <h2 style={styles.cardTitle}>Total Workouts</h2>
+                    <p style={styles.statValue}>{statsData.totalWorkouts}</p>
+                </div>
+                 <div style={styles.formCard}>
+                    <h2 style={styles.cardTitle}>Total Volume</h2>
+                    <p style={styles.statValue}>{statsData.totalVolume.toLocaleString()} <span style={styles.statUnit}>kg</span></p>
+                </div>
+            </div>
+            <div style={styles.formCard}>
+                <h2 style={styles.cardTitle}>Muscle Activation</h2>
+                {statsData.totalWorkouts > 0 ? (
+                     <MuscleMan 
+                        data={statsData.muscleGroupPoints} 
+                        totalPoints={statsData.totalPoints}
+                        onMuscleHover={handleMuscleHover}
+                        onMouseLeave={handleMouseLeave}
+                    />
+                ) : (
+                    <p style={styles.noHistory}>No workouts logged in this period.</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
 const Footer = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: string) => void }) => (
     <footer style={styles.footer}>
         <div style={styles.footerNav}>
             <div style={activeTab === 'summary' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('summary')}>
                 <svg style={styles.footerIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M12,1L2,12h3v8h14v-8h3M12,5.7l6,5.3v6H6v-6Z" /></svg>
                 <span>Summary</span>
+            </div>
+             <div style={activeTab === 'stats' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('stats')}>
+                <StatsIcon style={styles.footerIcon} />
+                <span>Stats</span>
             </div>
             <div style={activeTab === 'library' ? {...styles.footerItem, ...styles.footerItemActive} : styles.footerItem} onClick={() => setActiveTab('library')}>
                  <svg style={styles.footerIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M18,2H6C4.9,2,4,2.9,4,4V20C4,21.1,4.9,22,6,22H18C19.1,22,20,21.1,20,20V4C20,2.9,19.1,2,18,2M6,4H11V12L8.5,10.5L6,12V4M18,20H6V14L8.5,12.5L11,14V4H18V20Z" /></svg>
@@ -833,6 +1211,16 @@ const GlobalStyles = () => (
         .libraryAddBtn:active {
             transform: scale(0.9);
         }
+        .historyScrollContainer::-webkit-scrollbar {
+          width: 6px;
+        }
+        .historyScrollContainer::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .historyScrollContainer::-webkit-scrollbar-thumb {
+          background-color: var(--border-color);
+          border-radius: 10px;
+        }
     `}</style>
 );
 
@@ -850,18 +1238,19 @@ const styles: Record<string, React.CSSProperties> = {
     input: { backgroundColor: 'var(--button-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', color: 'var(--text-primary)', fontSize: '16px', width: '100%', boxSizing: 'border-box', transition: 'border-color 0.2s, box-shadow 0.2s' },
     button: { background: 'linear-gradient(45deg, var(--primary-accent), var(--secondary-accent))', color: 'white', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.2s, filter 0.2s' },
     historyCard: { backgroundColor: 'var(--surface)', borderRadius: '16px', padding: '16px', marginBottom: '20px', border: '1px solid var(--border-color)' },
+    historyScrollContainer: { maxHeight: '240px', overflowY: 'auto', paddingRight: '5px', marginRight: '-5px' },
     historyDate: { fontSize: '14px', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '8px' },
     historyList: { listStyle: 'none', padding: 0, margin: 0 },
     historyItem: { display: 'flex', justifyContent: 'space-between', padding: '12px 4px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background-color 0.2s' },
     workoutDetails: { display: 'flex', flexDirection: 'column', gap: '4px' },
     workoutCalories: { background: 'linear-gradient(45deg, var(--primary-accent), var(--secondary-accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '700', alignSelf: 'center' },
     noHistory: { color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' },
-    footer: { position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '450px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: 'rgba(28, 28, 30, 0.85)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-color)', padding: '8px 0 16px 0', gap: '8px' },
+    footer: { position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '450px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: 'rgba(28, 28, 30, 0.85)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-color)', padding: '2px 0 4px 0', gap: '2px' },
     footerNav: { display: 'flex', justifyContent: 'space-around', width: '100%' },
-    footerItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)', fontSize: '10px', cursor: 'pointer', transition: 'color 0.2s, transform 0.2s' },
+    footerItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', color: 'var(--text-secondary)', fontSize: '10px', cursor: 'pointer', transition: 'color 0.2s, transform 0.2s', padding: '4px 12px' },
     footerItemActive: { color: 'var(--primary-accent)' },
-    footerIcon: { width: '28px', height: '28px' },
-    signature: { margin: 0, fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.8 },
+    footerIcon: { width: '22px', height: '22px' },
+    signature: { margin: 0, fontSize: '9px', color: 'var(--text-secondary)', opacity: 0.6 },
     suggestionsList: { position: 'absolute', width: '100%', backgroundColor: '#2c2c2e', border: '1px solid var(--border-color)', borderRadius: '8px', listStyle: 'none', padding: '0', margin: '4px 0 0 0', zIndex: 10, maxHeight: '200px', overflowY: 'auto' },
     suggestionItem: { padding: '12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)' },
     suggestionCategory: { fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' },
@@ -909,6 +1298,42 @@ const styles: Record<string, React.CSSProperties> = {
     routineDayTitle: { fontSize: '16px', fontWeight: '600', color: 'var(--primary-accent)', margin: 0 },
     routineAddBtn: { background: 'var(--button-bg)', color: 'var(--primary-accent)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
     routineExerciseList: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px' },
+    periodSelector: { display: 'flex', gap: '10px', backgroundColor: 'var(--surface)', borderRadius: '10px', padding: '4px', marginBottom: '20px', border: '1px solid var(--border-color)' },
+    periodButton: { flex: 1, background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'background-color 0.2s, color 0.2s' },
+    periodButtonActive: { backgroundColor: 'var(--button-bg)', color: 'var(--text-primary)' },
+    statsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' },
+    statValue: { fontSize: '28px', fontWeight: '700', margin: 0, background: 'linear-gradient(45deg, var(--primary-accent), var(--secondary-accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+    statUnit: { fontSize: '16px', fontWeight: '500' },
+    muscleTooltip: {
+        backgroundColor: 'rgba(28, 28, 30, 0.9)',
+        color: 'var(--text-primary)',
+        padding: '8px 12px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        border: '1px solid var(--border-color)',
+        zIndex: 1100,
+        pointerEvents: 'none',
+        transition: 'opacity 0.2s',
+        maxWidth: '200px',
+    },
+    muscleTooltipHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '6px',
+        paddingBottom: '4px',
+        borderBottom: '1px solid var(--border-color)',
+    },
+    muscleTooltipList: {
+        margin: 0,
+        padding: 0,
+        listStyle: 'none',
+        fontSize: '12px',
+        color: 'var(--text-secondary)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+    },
 };
 
 const container = document.getElementById('root');
