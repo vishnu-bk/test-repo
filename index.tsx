@@ -1,5 +1,26 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import { initializeApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+
+
+// === FIREBASE SETUP ===
+const firebaseConfig = {
+  apiKey: "AIzaSyAUt9AUr_p9r5_LGwozrLZn9iJBQqYqakQ",
+  authDomain: "gymbroot.firebaseapp.com",
+  projectId: "gymbroot",
+  storageBucket: "gymbroot.firebasestorage.app",
+  messagingSenderId: "388900626444",
+  appId: "1:388900626444:web:10bd6baa505ac8ea040e29",
+  measurementId: "G-HG62DDG47X"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 
 // === ICONS ===
 const WeightliftingIcon = ({ style }: { style: React.CSSProperties }) => (
@@ -111,10 +132,12 @@ const ExerciseIcon = ({ category, style } : { category: string, style: React.CSS
     );
 };
 
+// === TYPES ===
 interface SetData { weight: number; reps: number; }
-interface Workout { id: number; timestamp: string; name: string; type: 'Strength' | 'Cardio'; category: string; date: string; sets?: SetData[]; duration?: number; calories: number; }
-interface Exercise { name: string; type: 'Strength' | 'Cardio'; category: string; primaryMuscles: string[]; secondaryMuscles: string[]; }
+interface Workout { id: string; timestamp: Timestamp; name: string; type: 'Strength' | 'Cardio'; category: string; date: string; sets?: SetData[]; duration?: number; calories: number; }
+interface Exercise { id?: string; name: string; type: 'Strength' | 'Cardio'; category: string; primaryMuscles: string[]; secondaryMuscles: string[]; }
 
+// === STATIC DATA ===
 const initialExerciseList: Omit<Exercise, 'primaryMuscles' | 'secondaryMuscles'>[] = [
     { name: 'Barbell Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Dumbbell Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Incline Barbell Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Incline Dumbbell Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Decline Barbell Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Decline Dumbbell Press', type: 'Strength', category: 'Chest' }, { name: 'Cable Chest Fly', type: 'Strength', category: 'Chest' }, { name: 'Dumbbell Chest Fly', type: 'Strength', category: 'Chest' }, { name: 'Incline Dumbbell Fly', type: 'Strength', category: 'Chest' }, { name: 'Push-Ups', type: 'Strength', category: 'Chest' }, { name: 'Pec Deck', type: 'Strength', category: 'Chest' }, { name: 'Close-Grip Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Guillotine Press', type: 'Strength', category: 'Chest' }, { name: 'Barbell Floor Press', type: 'Strength', category: 'Chest' }, { name: 'Dumbbell Floor Press', type: 'Strength', category: 'Chest' }, { name: 'Dumbbell Pullover', type: 'Strength', category: 'Chest' }, { name: 'Plate Squeeze Press', type: 'Strength', category: 'Chest' }, { name: 'Alternating Dumbbell Press', type: 'Strength', category: 'Chest' }, { name: 'Dumbbells-together Incline Bench Press', type: 'Strength', category: 'Chest' }, { name: 'Dumbbell Chest Press (Neutral Grip)', type: 'Strength', category: 'Chest' }, { name: 'One-Arm Dumbbell Fly', type: 'Strength', category: 'Chest' }, { name: 'Hex Press (Dumbbell Squeeze Press)', type: 'Strength', category: 'Chest' },
     { name: 'Wide Grip Pull-Ups', type: 'Strength', category: 'Back' }, { name: 'Lat Pulldown', type: 'Strength', category: 'Back' }, { name: 'Bent Over Barbell Row', type: 'Strength', category: 'Back' }, { name: 'Single-Arm Dumbbell Row', type: 'Strength', category: 'Back' }, { name: 'Seated Cable Row', type: 'Strength', category: 'Back' }, { name: 'Standard Deadlifts', type: 'Strength', category: 'Back' },
@@ -143,6 +166,154 @@ const CATEGORY_COLORS: { [key: string]: string } = {
     'Chest': '#ff6b6b', 'Back': '#48dbfb', 'Legs': '#1dd1a1', 'Shoulders': '#feca57', 'Arms': '#ff9f43',
     'Core': '#54a0ff', 'Full-Body': '#a3cb38', 'Cardio': '#5f27cd', 'Default': '#ced6e0'
 };
+
+const MainApp = ({ user }: { user: User }) => {
+    const [workouts, setWorkouts] = useState<Workout[]>([]);
+    const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(NEW_EXERCISE_DB);
+    
+    const [activeTab, setActiveTab] = useState('summary');
+    const [exerciseToLog, setExerciseToLog] = useState<Exercise | null>(null);
+
+    // Data fetching from Firestore
+    useEffect(() => {
+        const workoutsQuery = query(collection(db, 'users', user.uid, 'workouts'), orderBy('timestamp', 'desc'));
+        const unsubscribeWorkouts = onSnapshot(workoutsQuery, (snapshot) => {
+            const fetchedWorkouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workout));
+            setWorkouts(fetchedWorkouts);
+        });
+
+        const customExercisesQuery = query(collection(db, 'users', user.uid, 'customExercises'));
+        const unsubscribeExercises = onSnapshot(customExercisesQuery, (snapshot) => {
+            const customExercises = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exercise));
+            const combined = [...NEW_EXERCISE_DB];
+            const builtInNames = new Set(NEW_EXERCISE_DB.map(e => e.name));
+            customExercises.forEach(savedEx => { if (!builtInNames.has(savedEx.name)) { combined.push(savedEx); } });
+            setExerciseLibrary(combined);
+        });
+
+        return () => {
+            unsubscribeWorkouts();
+            unsubscribeExercises();
+        };
+    }, [user.uid]);
+
+    const calculateCalories = ({ type, duration, sets }: { type: string, duration?: number, sets?: Partial<SetData>[] }) => {
+        if (type === 'Cardio') return Math.round((duration || 0) * 8.5);
+        if (!sets) return 0;
+        const totalVolume = sets.reduce((acc, set) => acc + ( (set.weight || 0) * (set.reps || 0) ), 0);
+        return Math.round(totalVolume * 0.15);
+    };
+
+    const addWorkout = async (workout: WorkoutFormData) => {
+        const newWorkoutData = { 
+            ...workout, 
+            timestamp: serverTimestamp(),
+            calories: calculateCalories(workout) 
+        };
+        await addDoc(collection(db, 'users', user.uid, 'workouts'), newWorkoutData);
+    };
+
+    const handleUpdateWorkout = async (updatedWorkoutData: Workout) => {
+        const workoutRef = doc(db, 'users', user.uid, 'workouts', updatedWorkoutData.id);
+        const updatedData = { ...updatedWorkoutData, calories: calculateCalories(updatedWorkoutData) };
+        delete (updatedData as any).id; // Don't save id field in the document
+        await updateDoc(workoutRef, updatedData);
+    };
+
+    const handleDeleteWorkout = async (workoutId: string) => {
+        await deleteDoc(doc(db, 'users', user.uid, 'workouts', workoutId));
+    };
+    
+    const clearExerciseToLog = useCallback(() => {
+        setExerciseToLog(null);
+    }, []);
+
+    const handleAddExerciseFromLibrary = (exercise: Exercise) => { 
+        setExerciseToLog(exercise);
+        setActiveTab('summary');
+    };
+
+    const handleAddCustomExercise = async (newExercise: Omit<Exercise, 'id'>) => {
+        await addDoc(collection(db, 'users', user.uid, 'customExercises'), newExercise);
+    }
+
+    const handleStartRoutine = (routine: typeof ROUTINES_DATA[0]) => {
+        const today = new Date().toISOString().split('T')[0];
+        const routineWorkouts: WorkoutFormData[] = routine.split.flatMap(day => 
+            day.exercises.map((exName): WorkoutFormData | null => {
+                const exercise = exerciseLibrary.find(e => e.name === exName);
+                if (!exercise) return null;
+                return {
+                    name: exName,
+                    type: exercise.type,
+                    category: exercise.category,
+                    date: today,
+                    sets: exercise.type === 'Strength' ? [{ weight: 0, reps: 0 }, { weight: 0, reps: 0 }, { weight: 0, reps: 0 }] : undefined,
+                    duration: exercise.type === 'Cardio' ? 30 : undefined,
+                };
+            })
+        ).filter((w): w is WorkoutFormData => w !== null);
+
+        routineWorkouts.forEach(addWorkout);
+        setActiveTab('summary');
+    };
+    
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("Error signing out: ", error);
+        }
+    };
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'stats':
+                return <StatsPage workouts={workouts} exerciseLibrary={exerciseLibrary} onLogout={handleLogout} />;
+            case 'library':
+                return <LibraryPage 
+                    exerciseLibrary={exerciseLibrary} 
+                    onAddExercise={handleAddExerciseFromLibrary} 
+                    onAddCustomExercise={handleAddCustomExercise}
+                    routines={ROUTINES_DATA}
+                    onStartRoutine={handleStartRoutine}
+                />;
+            case 'summary':
+            default:
+                return (
+                    <SummaryPage
+                        workouts={workouts}
+                        addWorkout={addWorkout}
+                        handleUpdateWorkout={handleUpdateWorkout}
+                        handleDeleteWorkout={handleDeleteWorkout}
+                        exerciseLibrary={exerciseLibrary}
+                        exerciseToLog={exerciseToLog}
+                        clearExerciseToLog={clearExerciseToLog}
+                    />
+                );
+        }
+    };
+    
+    return (
+        <div style={styles.appContainer}>
+            <main style={styles.mainContent}>{renderContent()}</main>
+            <footer style={styles.footer}>
+                <div style={styles.footerNav}>
+                    <button onClick={() => setActiveTab('summary')} style={{...styles.footerButton, ...(activeTab === 'summary' ? styles.activeFooterButton : {})}}>
+                        <SummaryIcon style={{...styles.footerIcon, ...(activeTab === 'summary' ? styles.activeFooterIcon : {})}} />
+                    </button>
+                    <button onClick={() => setActiveTab('stats')} style={{...styles.footerButton, ...(activeTab === 'stats' ? styles.activeFooterButton : {})}}>
+                        <StatsIcon style={{...styles.footerIcon, ...(activeTab === 'stats' ? styles.activeFooterIcon : {})}} />
+                    </button>
+                    <button onClick={() => setActiveTab('library')} style={{...styles.footerButton, ...(activeTab === 'library' ? styles.activeFooterButton : {})}}>
+                        <LibraryIcon style={{...styles.footerIcon, ...(activeTab === 'library' ? styles.activeFooterIcon : {})}} />
+                    </button>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
 
 const CategoryDistributionChart = ({ workouts, exerciseLibrary }: { workouts: Workout[], exerciseLibrary: Exercise[] }) => {
     const data = useMemo(() => {
@@ -242,7 +413,7 @@ const TopFocusAreas = ({ workouts, exerciseLibrary }: { workouts: Workout[], exe
 };
 
 
-const StatsPage = ({ workouts, exerciseLibrary }: { workouts: Workout[], exerciseLibrary: Exercise[] }) => {
+const StatsPage = ({ workouts, exerciseLibrary, onLogout }: { workouts: Workout[], exerciseLibrary: Exercise[], onLogout: () => void }) => {
     const filteredWorkouts = useMemo(() => {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -255,6 +426,7 @@ const StatsPage = ({ workouts, exerciseLibrary }: { workouts: Workout[], exercis
             <header style={styles.pageHeader}>
                 <h1 style={styles.pageTitle}>Your Weekly Stats</h1>
                 <p style={styles.pageSubtitle}>Activity from the last 7 days</p>
+                <button onClick={onLogout} style={styles.logoutButton}>Logout</button>
             </header>
             
             <div style={styles.statsGrid}>
@@ -269,156 +441,17 @@ const StatsPage = ({ workouts, exerciseLibrary }: { workouts: Workout[], exercis
     );
 };
 
-const App = () => {
-    const [workouts, setWorkouts] = useState<Workout[]>(() => {
-        try {
-            const saved = localStorage.getItem('workouts');
-            const parsedWorkouts: any[] = saved ? JSON.parse(saved) : [];
-            
-            // Simple one-time migration for old data without a category property
-            const migratedWorkouts = parsedWorkouts.map(w => {
-                if (w && typeof w.category !== 'string') {
-                    const exerciseDetails = NEW_EXERCISE_DB.find(ex => ex.name === w.name);
-                    return { ...w, category: exerciseDetails?.category || 'Default' };
-                }
-                return w;
-            });
-
-            return migratedWorkouts;
-        } catch (e) {
-            return [];
-        }
-    });
-
-    const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(() => {
-        try {
-            const saved = localStorage.getItem('exerciseLibrary');
-            const savedLibrary: Exercise[] = saved ? JSON.parse(saved) : [];
-            const combined = [...NEW_EXERCISE_DB];
-            const builtInNames = new Set(NEW_EXERCISE_DB.map(e => e.name));
-            savedLibrary.forEach(savedEx => { if (!builtInNames.has(savedEx.name)) { combined.push(savedEx); } });
-            return combined;
-        } catch (e) { return NEW_EXERCISE_DB; }
-    });
-    
-    const [activeTab, setActiveTab] = useState('summary');
-    const [exerciseToLog, setExerciseToLog] = useState<Exercise | null>(null);
-
-    useEffect(() => { localStorage.setItem('workouts', JSON.stringify(workouts)); }, [workouts]);
-    useEffect(() => { localStorage.setItem('exerciseLibrary', JSON.stringify(exerciseLibrary)); }, [exerciseLibrary]);
-
-    const calculateCalories = ({ type, duration, sets }: { type: string, duration?: number, sets?: Partial<SetData>[] }) => {
-        if (type === 'Cardio') return Math.round((duration || 0) * 8.5);
-        if (!sets) return 0;
-        const totalVolume = sets.reduce((acc, set) => acc + ( (set.weight || 0) * (set.reps || 0) ), 0);
-        return Math.round(totalVolume * 0.15);
-    };
-
-    const addWorkout = (workout: WorkoutFormData) => {
-        const newWorkout: Workout = { id: Date.now(), timestamp: new Date(`${workout.date}T${new Date().toTimeString().split(' ')[0]}`).toISOString(), ...workout, calories: calculateCalories(workout) };
-        setWorkouts(prev => [...prev, newWorkout]);
-    };
-
-    const handleUpdateWorkout = (updatedWorkoutData: Workout) => {
-        const updatedWorkout = { ...updatedWorkoutData, calories: calculateCalories(updatedWorkoutData) };
-        setWorkouts(prev => prev.map(w => w.id === updatedWorkout.id ? updatedWorkout : w));
-    };
-
-    const handleDeleteWorkout = (workoutId: number) => {
-        setWorkouts(prev => prev.filter(w => w.id !== workoutId));
-    };
-    
-    const clearExerciseToLog = useCallback(() => {
-        setExerciseToLog(null);
-    }, []);
-
-    const handleAddExerciseFromLibrary = (exercise: Exercise) => { 
-        setExerciseToLog(exercise);
-        setActiveTab('summary');
-    };
-
-    const handleAddCustomExercise = (newExercise: Exercise) => setExerciseLibrary(prev => [...prev, newExercise]);
-
-    const handleStartRoutine = (routine: typeof ROUTINES_DATA[0]) => {
-        const today = new Date().toISOString().split('T')[0];
-        const routineWorkouts: WorkoutFormData[] = routine.split.flatMap(day => 
-            day.exercises.map((exName): WorkoutFormData | null => {
-                const exercise = exerciseLibrary.find(e => e.name === exName);
-                if (!exercise) return null;
-                return {
-                    name: exName,
-                    type: exercise.type,
-                    category: exercise.category,
-                    date: today,
-                    sets: exercise.type === 'Strength' ? [{ weight: 0, reps: 0 }, { weight: 0, reps: 0 }, { weight: 0, reps: 0 }] : undefined,
-                    duration: exercise.type === 'Cardio' ? 30 : undefined,
-                };
-            })
-        ).filter((w): w is WorkoutFormData => w !== null);
-
-        routineWorkouts.forEach(addWorkout);
-        setActiveTab('summary');
-    };
-    
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'stats':
-                return <StatsPage workouts={workouts} exerciseLibrary={exerciseLibrary} />;
-            case 'library':
-                return <LibraryPage 
-                    exerciseLibrary={exerciseLibrary} 
-                    onAddExercise={handleAddExerciseFromLibrary} 
-                    onAddCustomExercise={handleAddCustomExercise}
-                    routines={ROUTINES_DATA}
-                    onStartRoutine={handleStartRoutine}
-                />;
-            case 'summary':
-            default:
-                return (
-                    <SummaryPage
-                        workouts={workouts}
-                        addWorkout={addWorkout}
-                        handleUpdateWorkout={handleUpdateWorkout}
-                        handleDeleteWorkout={handleDeleteWorkout}
-                        exerciseLibrary={exerciseLibrary}
-                        exerciseToLog={exerciseToLog}
-                        clearExerciseToLog={clearExerciseToLog}
-                    />
-                );
-        }
-    };
-    
-    return (
-        <div style={styles.appContainer}>
-            <main style={styles.mainContent}>{renderContent()}</main>
-            <footer style={styles.footer}>
-                <div style={styles.footerNav}>
-                    <button onClick={() => setActiveTab('summary')} style={{...styles.footerButton, ...(activeTab === 'summary' ? styles.activeFooterButton : {})}}>
-                        <SummaryIcon style={{...styles.footerIcon, ...(activeTab === 'summary' ? styles.activeFooterIcon : {})}} />
-                    </button>
-                    <button onClick={() => setActiveTab('stats')} style={{...styles.footerButton, ...(activeTab === 'stats' ? styles.activeFooterButton : {})}}>
-                        <StatsIcon style={{...styles.footerIcon, ...(activeTab === 'stats' ? styles.activeFooterIcon : {})}} />
-                    </button>
-                    <button onClick={() => setActiveTab('library')} style={{...styles.footerButton, ...(activeTab === 'library' ? styles.activeFooterButton : {})}}>
-                        <LibraryIcon style={{...styles.footerIcon, ...(activeTab === 'library' ? styles.activeFooterIcon : {})}} />
-                    </button>
-                </div>
-            </footer>
-        </div>
-    );
-};
-
 const Header = () => (
     <header style={styles.appHeader}>
         <h1 style={styles.appName}>Gymbrootan</h1>
     </header>
 );
 
-const SummaryPage = ({ workouts, addWorkout, handleUpdateWorkout, handleDeleteWorkout, exerciseLibrary, exerciseToLog, clearExerciseToLog }: { workouts: Workout[], addWorkout: (w: WorkoutFormData) => void, handleUpdateWorkout: (w: Workout) => void, handleDeleteWorkout: (id: number) => void, exerciseLibrary: Exercise[], exerciseToLog: Exercise | null, clearExerciseToLog: () => void }) => {
+const SummaryPage = ({ workouts, addWorkout, handleUpdateWorkout, handleDeleteWorkout, exerciseLibrary, exerciseToLog, clearExerciseToLog }: { workouts: Workout[], addWorkout: (w: WorkoutFormData) => void, handleUpdateWorkout: (w: Workout) => void, handleDeleteWorkout: (id: string) => void, exerciseLibrary: Exercise[], exerciseToLog: Exercise | null, clearExerciseToLog: () => void }) => {
     const [historyVisible, setHistoryVisible] = useState(false);
     const [detailWorkout, setDetailWorkout] = useState<Workout | null>(null);
     const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null);
-    const [swipedWorkoutId, setSwipedWorkoutId] = useState<number | null>(null);
+    const [swipedWorkoutId, setSwipedWorkoutId] = useState<string | null>(null);
     
     const todayISO = new Date().toISOString().split('T')[0];
 
@@ -437,16 +470,11 @@ const SummaryPage = ({ workouts, addWorkout, handleUpdateWorkout, handleDeleteWo
             }
         });
         
-        today.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
+        // No need to sort todayWorkouts as Firestore query already sorts by timestamp desc
         const pastWorkoutsByDate = Object.entries(past)
             .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
-        
-        pastWorkoutsByDate.forEach(([_, workoutsOnDate]) => {
-            workoutsOnDate.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        });
 
-        return { todayWorkouts: today, pastWorkoutsByDate };
+        return { todayWorkouts, pastWorkoutsByDate };
     }, [workouts, todayISO]);
 
 
@@ -455,11 +483,11 @@ const SummaryPage = ({ workouts, addWorkout, handleUpdateWorkout, handleDeleteWo
         setEditingWorkout(workout);
     };
     
-    const handleSwipe = (id: number) => {
+    const handleSwipe = (id: string) => {
         setSwipedWorkoutId(prevId => (prevId === id ? null : id));
     };
 
-    const enhancedDeleteWorkout = (id: number) => {
+    const enhancedDeleteWorkout = (id: string) => {
         handleDeleteWorkout(id);
         setSwipedWorkoutId(null);
     };
@@ -651,8 +679,7 @@ const WorkoutForm = ({ workouts, addWorkout, exerciseLibrary, exerciseToLog, cle
     
     const populateWithPreviousData = (exercise: Exercise) => {
         const lastWorkout = workouts
-            .filter(w => w.name === exercise.name)
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+            .filter(w => w.name === exercise.name)[0]; // Already sorted by date desc
 
         setType(exercise.type);
         if (exercise.type === 'Strength') {
@@ -797,7 +824,7 @@ const WorkoutForm = ({ workouts, addWorkout, exerciseLibrary, exerciseToLog, cle
     );
 };
 
-const EditWorkoutModal = ({ workout, onClose, onSave, onDelete }: { workout: Workout, onClose: () => void, onSave: (w: Workout) => void, onDelete: (id: number) => void }) => {
+const EditWorkoutModal = ({ workout, onClose, onSave, onDelete }: { workout: Workout, onClose: () => void, onSave: (w: Workout) => void, onDelete: (id: string) => void }) => {
     const [editedWorkout, setEditedWorkout] = useState<Workout>(workout);
 
     const handleSetChange = (index: number, field: 'weight' | 'reps', value: string) => {
@@ -857,11 +884,12 @@ const EditWorkoutModal = ({ workout, onClose, onSave, onDelete }: { workout: Wor
 };
 
 const WorkoutDetailModal = ({ workout, allWorkouts, onClose, onEdit, onDelete }: { workout: Workout; allWorkouts: Workout[]; onClose: () => void; onEdit: () => void; onDelete: () => void; }) => {
+    const timestampStr = workout.timestamp ? new Date(workout.timestamp.seconds * 1000).toLocaleString() : 'Just now';
     return (
         <div style={styles.modalBackdrop} onClick={onClose}>
             <div style={{ ...styles.modalContent, ...styles.detailModalContent, animation: 'scaleIn 0.3s ease-out forwards' }} onClick={e => e.stopPropagation()}>
                 <h3 style={styles.modalTitle}>{workout.name}</h3>
-                <p style={styles.modalSubtitle}>{new Date(workout.timestamp).toLocaleString()}</p>
+                <p style={styles.modalSubtitle}>{timestampStr}</p>
                 <div style={styles.workoutDetailSection}>
                     <h4>Progress Chart (Last 15 Sessions)</h4>
                     <ExerciseProgressChart exerciseName={workout.name} allWorkouts={allWorkouts} />
@@ -889,8 +917,8 @@ const ExerciseProgressChart = ({ exerciseName, allWorkouts }: { exerciseName: st
     const chartData = useMemo(() => {
         const exerciseHistory = allWorkouts
             .filter(w => w.name === exerciseName && (w.type === 'Cardio' || (w.sets && w.sets.length > 0)))
-            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-            .slice(-15);
+            .slice(0, 15) // Already sorted desc, so we take the first 15 (most recent)
+            .reverse(); // Reverse to have time flowing left-to-right
 
         return exerciseHistory.map(workout => {
             let value = 0;
@@ -954,7 +982,7 @@ const ExerciseProgressChart = ({ exerciseName, allWorkouts }: { exerciseName: st
     );
 };
 
-const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, routines, onStartRoutine }: { exerciseLibrary: Exercise[], onAddExercise: (e: Exercise) => void, onAddCustomExercise: (e: Exercise) => void, routines: typeof ROUTINES_DATA, onStartRoutine: (r: typeof ROUTINES_DATA[0]) => void }) => {
+const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, routines, onStartRoutine }: { exerciseLibrary: Exercise[], onAddExercise: (e: Exercise) => void, onAddCustomExercise: (e: Omit<Exercise, 'id'>) => void, routines: typeof ROUTINES_DATA, onStartRoutine: (r: typeof ROUTINES_DATA[0]) => void }) => {
     const [activeTab, setActiveTab] = useState('exercises'); // 'exercises' or 'routines'
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddForm, setShowAddForm] = useState(false);
@@ -980,7 +1008,7 @@ const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, rout
         }));
     };
 
-    const handleAddCustom = (newExercise: Exercise) => {
+    const handleAddCustom = (newExercise: Omit<Exercise, 'id'>) => {
         onAddCustomExercise(newExercise);
         setShowAddForm(false);
     };
@@ -1079,7 +1107,7 @@ const LibraryPage = ({ exerciseLibrary, onAddExercise, onAddCustomExercise, rout
     );
 };
 
-const AddCustomExerciseForm = ({ onAdd }: { onAdd: (ex: Exercise) => void }) => {
+const AddCustomExerciseForm = ({ onAdd }: { onAdd: (ex: Omit<Exercise, 'id'>) => void }) => {
     const [name, setName] = useState('');
     const [type, setType] = useState<'Strength' | 'Cardio'>('Strength');
     const [category, setCategory] = useState('Chest');
@@ -1119,6 +1147,105 @@ const AddCustomExerciseForm = ({ onAdd }: { onAdd: (ex: Exercise) => void }) => 
             <button type="submit" style={styles.submitButton}>Add Exercise</button>
         </form>
     );
+};
+
+const LoadingSpinner = () => (
+    <div style={styles.authContainer}>
+        <div style={styles.spinner}></div>
+    </div>
+);
+
+const AuthPage = () => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        try {
+            if (isLogin) {
+                await signInWithEmailAndPassword(auth, email, password);
+            } else {
+                await createUserWithEmailAndPassword(auth, email, password);
+            }
+        } catch (err: any) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div style={styles.authContainer}>
+            <div style={styles.authCard}>
+                <Header/>
+                <h2 style={styles.authTitle}>{isLogin ? 'Login' : 'Sign Up'}</h2>
+                <form onSubmit={handleSubmit} style={styles.form}>
+                    <input 
+                        type="email" 
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)} 
+                        placeholder="Email" 
+                        style={styles.input} 
+                        required 
+                    />
+                    <input 
+                        type="password" 
+                        value={password} 
+                        onChange={e => setPassword(e.target.value)} 
+                        placeholder="Password" 
+                        style={styles.input} 
+                        required 
+                    />
+                    {error && <p style={styles.authError}>{error}</p>}
+                    <button type="submit" style={styles.submitButton}>{isLogin ? 'Login' : 'Sign Up'}</button>
+                </form>
+                <button onClick={() => setIsLogin(!isLogin)} style={styles.authToggle}>
+                    {isLogin ? "Need an account? Sign Up" : "Have an account? Login"}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// Injecting keyframes for animations
+const keyframes = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes scaleIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+const styleSheet = document.createElement("style");
+styleSheet.innerText = keyframes;
+document.head.appendChild(styleSheet);
+
+const App = () => {
+    const [user, setUser] = useState<User | null | undefined>(undefined); // undefined: loading, null: logged out, User: logged in
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    if (user === undefined) {
+        return <LoadingSpinner />;
+    }
+
+    if (user === null) {
+        return <AuthPage />;
+    }
+
+    return <MainApp user={user} />;
 };
 
 
@@ -1516,6 +1643,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     pageHeader: {
         padding: '16px 0',
         textAlign: 'center',
+        position: 'relative',
     },
     pageTitle: {
         fontSize: '28px',
@@ -1526,6 +1654,18 @@ const styles: { [key: string]: React.CSSProperties } = {
         margin: '4px 0 0',
         fontSize: '16px',
         color: 'var(--text-secondary)',
+    },
+    logoutButton: {
+        position: 'absolute',
+        top: '16px',
+        right: '0',
+        background: 'var(--button-bg)',
+        color: 'var(--text-primary)',
+        border: 'none',
+        borderRadius: '8px',
+        padding: '8px 12px',
+        cursor: 'pointer',
+        fontWeight: 600,
     },
     statsGrid: {
         display: 'grid',
@@ -1782,6 +1922,54 @@ const styles: { [key: string]: React.CSSProperties } = {
         borderRadius: '12px',
         marginBottom: '16px',
     },
+    authContainer: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+        minHeight: '100vh',
+        padding: '16px',
+    },
+    authCard: {
+        width: '100%',
+        maxWidth: '380px',
+        background: 'var(--surface)',
+        padding: '24px',
+        borderRadius: '16px',
+        border: '1px solid var(--border-color)',
+        animation: 'scaleIn 0.3s ease-out forwards'
+    },
+    authTitle: {
+        textAlign: 'center',
+        fontSize: '24px',
+        marginBottom: '24px',
+    },
+    authError: {
+        color: '#ff453a',
+        textAlign: 'center',
+        fontSize: '14px',
+        marginTop: '-8px',
+        marginBottom: '8px',
+    },
+    authToggle: {
+        background: 'none',
+        border: 'none',
+        color: 'var(--primary-accent)',
+        cursor: 'pointer',
+        display: 'block',
+        width: '100%',
+        marginTop: '16px',
+        textAlign: 'center',
+        fontSize: '14px',
+    },
+    spinner: {
+        width: '40px',
+        height: '40px',
+        border: '4px solid var(--border-color)',
+        borderTopColor: 'var(--primary-accent)',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite',
+    }
 };
 
 const container = document.getElementById('root');
