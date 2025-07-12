@@ -6,11 +6,12 @@ import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc
 
 
 // === FIREBASE SETUP ===
+// Firebase config is placed directly here to work with a simple deployment setup.
 const firebaseConfig = {
   apiKey: "AIzaSyAUt9AUr_p9r5_LGwozrLZn9iJBQqYqakQ",
   authDomain: "gymbroot.firebaseapp.com",
   projectId: "gymbroot",
-  storageBucket: "gymbroot.firebasestorage.app",
+  storageBucket: "gymbroot.appspot.com",
   messagingSenderId: "388900626444",
   appId: "1:388900626444:web:10bd6baa505ac8ea040e29",
   measurementId: "G-HG62DDG47X"
